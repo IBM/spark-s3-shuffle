@@ -1,0 +1,30 @@
+#
+# Copyright 2022- IBM Inc. All rights reserved
+# SPDX-License-Identifier: Apache2.0
+#
+sudo: false
+language: scala
+scala: 2.12.15
+jdk: openjdk8
+
+cache:
+  directories:
+    - "$HOME/.cache"
+    - "$HOME/.m2"
+
+before_install:
+  - ./.travis/prepare-build.sh
+
+jobs:
+  include:
+    - stage: package
+      script:
+        - mvn -DskipTests clean package
+    - stage: deploy
+      script:
+        - git config --local user.name "Travis CI"
+        - git config --local user.email "psp@zurich.ibm.com"
+
+stages:
+  - package
+  - deploy
