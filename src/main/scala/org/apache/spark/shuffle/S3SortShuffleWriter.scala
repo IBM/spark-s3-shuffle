@@ -22,7 +22,7 @@
 
 package org.apache.spark.shuffle
 
-import org.apache.spark.TaskContext
+import org.apache.spark.{SparkConf, TaskContext}
 import org.apache.spark.internal.Logging
 import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.shuffle.sort.S3ShuffleMapOutputWriter
@@ -33,6 +33,7 @@ import org.apache.spark.util.collection.ExternalSorter
  * This class was adapted from Apache Spark: SortShuffleWriter.scala.
  */
 class S3SortShuffleWriter[K, V, C](
+                                    conf: SparkConf,
                                     blockManager: BlockManager,
                                     handle: BaseShuffleHandle[K, V, C],
                                     mapId: Long,
@@ -65,7 +66,7 @@ class S3SortShuffleWriter[K, V, C](
     }
     sorter.insertAll(records)
 
-    val mapOutputWriter = new S3ShuffleMapOutputWriter(shuffleId, mapId, numPartitions, writeMetrics)
+    val mapOutputWriter = new S3ShuffleMapOutputWriter(conf, shuffleId, mapId, numPartitions, writeMetrics)
     sorter.writePartitionedMapOutput(shuffleId, mapId, mapOutputWriter)
 
     val writeStartTime = System.nanoTime()

@@ -103,6 +103,51 @@ class S3ShuffleManagerTest {
   }
 
   @Test
+  def testCombineByKey(): Unit = {
+    val conf = newSparkConf()
+    val sc = new SparkContext(conf)
+    try {
+      val numValuesPerPartition = 100000
+      val numPartitions = 20
+      val dataset = sc.parallelize(0 until numPartitions, numPartitions).mapPartitionsWithIndex {
+        case (index, _) =>
+          Iterator.tabulate(numValuesPerPartition) { offset =>
+            val key = offset
+            val value = offset*index
+            (key, value*2)
+          }
+      }
+
+      def convert_value(v: Int) = {
+        1
+      }
+
+      def count_values(x: Int, value: Int) = {
+        value + 1
+      }
+
+      def add_values(x: Int, y: Int) = {
+        x + y
+      }
+
+      val sumCount = dataset.combineByKey(convert_value, count_values, add_values)
+      val averageByKey = sumCount.sortByKey().collect()
+      assert(averageByKey.size == numValuesPerPartition)
+      var index = 0
+      for (i <- averageByKey) {
+        val key = i._1
+        val value = i._2
+        assert(key == index)
+        assert(value == numPartitions)
+        index += 1
+      }
+
+    } finally {
+      sc.stop()
+    }
+  }
+
+  @Test
   def teraSortLike(): Unit = {
     val conf = newSparkConf()
     conf.set("spark.shuffle.sort.bypassMergeThreshold", "1")

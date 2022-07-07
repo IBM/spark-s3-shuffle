@@ -6,6 +6,7 @@
 package org.apache.spark.shuffle.sort
 
 import org.apache.hadoop.fs.{FileSystem, Path}
+import org.apache.spark.SparkConf
 import org.apache.spark.deploy.SparkHadoopUtil
 import org.apache.spark.internal.Logging
 import org.apache.spark.scheduler.MapStatus
@@ -19,6 +20,7 @@ import java.io.{BufferedInputStream, BufferedOutputStream}
 import scala.reflect.ClassTag
 
 class S3BypassMergeSortShuffleWriter[K, V](
+                                            conf: SparkConf,
                                             blockManager: BlockManager,
                                             handle: BaseShuffleHandle[K, V, _],
                                             mapId: Long,
@@ -29,7 +31,6 @@ class S3BypassMergeSortShuffleWriter[K, V](
   logInfo("Using S3BypassMergeSortShuffleWriter.")
   private lazy val dispatcher = S3ShuffleDispatcher.get
   private val dep = handle.dependency
-  private val conf = SparkEnv.get.conf
   private val shuffleId = dep.shuffleId
   private val partitioner = dep.partitioner
   private val localFs = FileSystem.getLocal(SparkHadoopUtil.newConfiguration(conf))

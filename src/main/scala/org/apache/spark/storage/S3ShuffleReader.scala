@@ -30,12 +30,13 @@ import org.apache.spark.shuffle.{BaseShuffleHandle, ShuffleReadMetricsReporter, 
 import org.apache.spark.storage.ShuffleBlockFetcherIterator.FetchBlockInfo
 import org.apache.spark.util.CompletionIterator
 import org.apache.spark.util.collection.ExternalSorter
-import org.apache.spark.{InterruptibleIterator, SparkEnv, TaskContext}
+import org.apache.spark.{InterruptibleIterator, SparkConf, SparkEnv, TaskContext}
 
 /**
  * This class was adapted from Apache Spark: BlockStoreShuffleReader.
  */
 class S3ShuffleReader[K, C](
+                             conf: SparkConf,
                              handle: BaseShuffleHandle[K, _, C],
                              context: TaskContext,
                              readMetrics: ShuffleReadMetricsReporter,
@@ -51,7 +52,6 @@ class S3ShuffleReader[K, C](
   private val dep = handle.dependency
 
   private val fetchContinousBlocksInBatch: Boolean = {
-    val conf = SparkEnv.get.conf
     val serializerRelocatable = dep.serializer.supportsRelocationOfSerializedObjects
     val compressed = conf.get(config.SHUFFLE_COMPRESS)
     val codecConcatenation = if (compressed) {
@@ -82,7 +82,7 @@ class S3ShuffleReader[K, C](
     val wrappedStreams = new S3ShuffleBlockIterator(blocks)
 
     // Create a key/value iterator for each stream
-    val recordIter = wrappedStreams.flatMap { case (blockId, wrappedStream) =>
+    val recordIter = wrappedStreams.filterNot(_._2.maxBytes == 0).flatMap { case (blockId, wrappedStream) =>
       readMetrics.incRemoteBytesRead(wrappedStream.maxBytes) // increase byte count.
       readMetrics.incRemoteBlocksFetched(1)
       // Note: the asKeyValueIterator below wraps a key/value iterator inside of a

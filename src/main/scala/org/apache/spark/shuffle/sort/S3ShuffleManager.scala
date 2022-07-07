@@ -79,6 +79,7 @@ private[spark] class S3ShuffleManager(conf: SparkConf) extends ShuffleManager wi
                                 context: TaskContext,
                                 metrics: ShuffleReadMetricsReporter): ShuffleReader[K, C] = {
     new S3ShuffleReader(
+      conf,
       handle.asInstanceOf[BaseShuffleHandle[K, _, C]],
       context, metrics,
       startMapIndex, endMapIndex,
@@ -106,6 +107,7 @@ private[spark] class S3ShuffleManager(conf: SparkConf) extends ShuffleManager wi
       //          shuffleExecutorComponents)
       case bypassMergeSortHandle: BypassMergeSortShuffleHandle[K@unchecked, V@unchecked] =>
         new S3BypassMergeSortShuffleWriter(
+          conf,
           env.blockManager,
           bypassMergeSortHandle,
           mapId,
@@ -113,7 +115,8 @@ private[spark] class S3ShuffleManager(conf: SparkConf) extends ShuffleManager wi
           metrics
           )
       case other: BaseShuffleHandle[K@unchecked, V@unchecked, _] =>
-        new S3SortShuffleWriter(env.blockManager,
+        new S3SortShuffleWriter(conf,
+                                env.blockManager,
                                 other,
                                 mapId,
                                 context,
