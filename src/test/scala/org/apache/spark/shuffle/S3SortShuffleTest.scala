@@ -25,8 +25,9 @@ package org.apache.spark.shuffle
 import org.apache.spark.executor.{ShuffleWriteMetrics, TempShuffleReadMetrics}
 import org.apache.spark.memory.TaskMemoryManager
 import org.apache.spark.serializer.KryoSerializer
-import org.apache.spark.shuffle.sort.{S3ShuffleDispatcher, S3ShuffleHelper}
-import org.apache.spark.storage.{BlockManager, BlockManagerId, S3ShuffleReader, ShuffleDataBlockId}
+import org.apache.spark.shuffle.helper.S3ShuffleHelper
+import org.apache.spark.shuffle.sort.S3SortShuffleWriter
+import org.apache.spark.storage.{BlockManager, BlockManagerId, S3ShuffleReader}
 import org.apache.spark.util.Utils
 import org.apache.spark.{Partitioner, ShuffleDependency, SparkConf, SparkContext, SparkEnv, TaskContext, TaskContextImpl}
 import org.junit.Test
@@ -79,7 +80,6 @@ class S3SortShuffleTest {
     writer.write(records.toIterator)
     writer.stop(success = true)
 
-    val file = S3ShuffleDispatcher.get.openBlock(ShuffleDataBlockId(shuffleId, mapId, 0))
     val partitionLengths = S3ShuffleHelper.getPartitionLengthsCached(shuffleId, mapId)
 
     assert(partitionLengths.sum == metrics.bytesWritten)
@@ -116,8 +116,8 @@ class S3SortShuffleTest {
     .set("spark.shuffle.s3.rootDir", sys.env("S3_SHUFFLE_ROOT"))
     .set("spark.dynamicAllocation.enabled", "true")
     .set("spark.local.dir", "./spark-temp") // Configure the working dir.
-    .set("spark.shuffle.sort.io.plugin.class", "org.apache.spark.shuffle.sort.io.S3ShuffleDataIO")
-    .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.S3ShuffleManager")
+    .set("spark.shuffle.sort.io.plugin.class", "org.apache.spark.shuffle.S3ShuffleDataIO")
+    .set("spark.shuffle.manager", "org.apache.spark.shuffle.S3ShuffleManager")
     .set("spark.shuffle.s3.forceBypassMergeSort", "false")
     .set("spark.shuffle.s3.cleanup", "false") // Avoid issues with cleanup.
 

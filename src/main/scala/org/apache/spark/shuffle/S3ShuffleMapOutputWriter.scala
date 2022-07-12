@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache2.0
  */
 
-package org.apache.spark.shuffle.sort.io
+package org.apache.spark.shuffle
 
 import org.apache.hadoop.fs.FSDataOutputStream
 import org.apache.spark.SparkConf
@@ -12,7 +12,7 @@ import org.apache.spark.internal.config.SHUFFLE_UNSAFE_FILE_OUTPUT_BUFFER_SIZE
 import org.apache.spark.shuffle.IndexShuffleBlockResolver.NOOP_REDUCE_ID
 import org.apache.spark.shuffle.api.metadata.MapOutputCommitMessage
 import org.apache.spark.shuffle.api.{ShuffleMapOutputWriter, ShufflePartitionWriter, WritableByteChannelWrapper}
-import org.apache.spark.shuffle.sort.{S3ShuffleDispatcher, S3ShuffleHelper}
+import org.apache.spark.shuffle.helper.{S3ShuffleDispatcher, S3ShuffleHelper}
 import org.apache.spark.storage.ShuffleDataBlockId
 
 import java.io.{BufferedOutputStream, IOException, OutputStream}

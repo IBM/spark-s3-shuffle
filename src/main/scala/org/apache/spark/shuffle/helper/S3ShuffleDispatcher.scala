@@ -3,11 +3,12 @@
  * SPDX-License-Identifier: Apache2.0
  */
 
-package org.apache.spark.shuffle.sort
+package org.apache.spark.shuffle.helper
 
 import org.apache.hadoop.fs._
 import org.apache.spark.deploy.SparkHadoopUtil
 import org.apache.spark.internal.Logging
+import org.apache.spark.shuffle.ConcurrentObjectMap
 import org.apache.spark.storage._
 import org.apache.spark.{SparkConf, SparkEnv}
 

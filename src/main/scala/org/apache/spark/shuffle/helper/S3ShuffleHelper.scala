@@ -1,13 +1,9 @@
-/**
- * Copyright 2022- IBM Inc. All rights reserved
- * SPDX-License-Identifier: Apache2.0
- */
-
-package org.apache.spark.shuffle.sort
+package org.apache.spark.shuffle.helper
 
 import org.apache.hadoop.fs.{Path, PathFilter}
 import org.apache.spark.SparkEnv
 import org.apache.spark.internal.Logging
+import org.apache.spark.shuffle.ConcurrentObjectMap
 import org.apache.spark.shuffle.IndexShuffleBlockResolver.NOOP_REDUCE_ID
 import org.apache.spark.storage.{BlockId, ShuffleIndexBlockId}
 

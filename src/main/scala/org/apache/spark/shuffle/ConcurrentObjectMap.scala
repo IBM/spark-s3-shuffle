@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache2.0
  */
 
-package org.apache.spark.shuffle.sort
+package org.apache.spark.shuffle
 
 import scala.collection.concurrent.TrieMap
 import scala.util.Try

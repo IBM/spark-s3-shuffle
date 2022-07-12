@@ -5,7 +5,7 @@
 
 package org.apache.spark.storage
 
-import org.apache.spark.shuffle.sort.{S3ShuffleDispatcher, S3ShuffleHelper}
+import org.apache.spark.shuffle.helper.{S3ShuffleDispatcher, S3ShuffleHelper}
 
 class S3ShuffleBlockIterator(
                               shuffleBlocks: Iterator[BlockId]

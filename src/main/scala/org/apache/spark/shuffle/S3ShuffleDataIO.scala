@@ -3,13 +3,12 @@
  * SPDX-License-Identifier: Apache2.0
  */
 
-package org.apache.spark.shuffle.sort.io
+package org.apache.spark.shuffle
 
-import org.apache.spark.{SparkConf, SparkEnv}
-import org.apache.spark.shuffle.IndexShuffleBlockResolver
 import org.apache.spark.shuffle.api.{ShuffleDataIO, ShuffleDriverComponents, ShuffleExecutorComponents, ShuffleMapOutputWriter}
-import org.apache.spark.shuffle.sort.S3ShuffleDispatcher
+import org.apache.spark.shuffle.helper.S3ShuffleDispatcher
 import org.apache.spark.storage.BlockManagerMaster
+import org.apache.spark.{SparkConf, SparkEnv}
 
 import java.util
 import java.util.Collections

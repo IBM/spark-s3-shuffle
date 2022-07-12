@@ -20,18 +20,19 @@
  * limitations under the License.
  */
 
-package org.apache.spark.shuffle.sort
+package org.apache.spark.shuffle
 
 import org.apache.hadoop.fs.{Path, PathFilter}
 import org.apache.spark._
 import org.apache.spark.internal.Logging
-import org.apache.spark.shuffle._
 import org.apache.spark.shuffle.api.ShuffleExecutorComponents
-import scala.collection.JavaConverters._
+import org.apache.spark.shuffle.helper.{S3ShuffleDispatcher, S3ShuffleHelper}
+import org.apache.spark.shuffle.sort._
 import org.apache.spark.storage.S3ShuffleReader
 import org.apache.spark.util.collection.OpenHashSet
 
 import java.util.concurrent.ConcurrentHashMap
+import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 
@@ -184,8 +185,8 @@ private[spark] class S3ShuffleManager(conf: SparkConf) extends ShuffleManager wi
 
 private[spark] object S3ShuffleManager {
   private def loadShuffleExecutorComponents(conf: SparkConf): ShuffleExecutorComponents = {
-    if (conf.get("spark.shuffle.sort.io.plugin.class") != "org.apache.spark.shuffle.sort.io.S3ShuffleDataIO") {
-      throw new RuntimeException("\"spark.shuffle.sort.io.plugin.class\" needs to be set to \"org.apache.spark.shuffle.sort.io.S3ShuffleDataIO\" in order for this plugin to work!")
+    if (conf.get("spark.shuffle.sort.io.plugin.class") != "org.apache.spark.shuffle.S3ShuffleDataIO") {
+      throw new RuntimeException("\"spark.shuffle.sort.io.plugin.class\" needs to be set to \"org.apache.spark.shuffle.S3ShuffleDataIO\" in order for this plugin to work!")
     }
     val executorComponents = ShuffleDataIOUtils.loadShuffleDataIO(conf).executor()
     val extraConfigs = conf.getAllWithPrefix(ShuffleDataIOUtils.SHUFFLE_SPARK_CONF_PREFIX)

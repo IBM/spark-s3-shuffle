@@ -22,9 +22,9 @@ mvn -DskipTests clean package
 
 ## Required options
 
-- `spark.shuffle.manager`: The shuffle manager. Needs to be set to `org.apache.spark.shuffle.sort.S3ShuffleManager`.
+- `spark.shuffle.manager`: The shuffle manager. Needs to be set to `org.apache.spark.shuffle.S3ShuffleManager`.
 - `spark.shuffle.sort.io.plugin.class`: The sort io plugin class. Needs to be set to 
-  `org.apache.spark.shuffle.sort.io.S3ShuffleDataIO`.
+  `org.apache.spark.shuffle.S3ShuffleDataIO`.
 - `spark.shuffle.s3.rootDir`: Root dir for the shuffle files. Examples:
     - `s3a://zrlio-tmp/s3-benchmark-shuffle` (Hadoop-AWS + AWS-SDK)
     - `cos://zrlio-tmp.resources/s3-benchmark-shuffle` (Hadoop-Cloud + Stocator)
@@ -78,8 +78,8 @@ Add the following lines to your Spark configuration:
     --conf spark.hadoop.fs.s3a.path.style.access=true
     --conf spark.hadoop.fs.s3a.fast.upload=true
     
-    --conf spark.shuffle.manager="org.apache.spark.shuffle.sort.S3ShuffleManager"
-    --conf spark.shuffle.sort.io.plugin.class="org.apache.spark.shuffle.sort.io.S3ShuffleDataIO"
+    --conf spark.shuffle.manager="org.apache.spark.shuffle.S3ShuffleManager"
+    --conf spark.shuffle.sort.io.plugin.class="org.apache.spark.shuffle.S3ShuffleDataIO"
     --conf spark.hadoop.fs.s3a.impl="org.apache.hadoop.fs.s3a.S3AFileSystem"
     --conf spark.shuffle.s3.rootDir=SHUFFLE_ROOT
 ```
@@ -108,8 +108,8 @@ Add the following lines to your Spark configuration:
     --conf spark.hadoop.fs.cos.resources.access.key=COS_ACCESS_KEY
     --conf spark.hadoop.fs.cos.resources.endpoint=COS_ENDPOINT
     --conf spark.hadoop.fs.cos.resources.secret.key=COS_SECRET_KEY
-    --conf spark.shuffle.manager="org.apache.spark.shuffle.sort.S3ShuffleManager"
-    --conf spark.shuffle.sort.io.plugin.class="org.apache.spark.shuffle.sort.io.S3ShuffleDataIO"
+    --conf spark.shuffle.manager="org.apache.spark.shuffle.S3ShuffleManager"
+    --conf spark.shuffle.sort.io.plugin.class="org.apache.spark.shuffle.S3ShuffleDataIO"
     --conf spark.shuffle.s3.rootDir=SHUFFLE_ROOT
 ```
 

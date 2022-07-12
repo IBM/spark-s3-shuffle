@@ -3,18 +3,17 @@
  * SPDX-License-Identifier: Apache2.0
  */
 
-package org.apache.spark.shuffle.sort
+package org.apache.spark.shuffle
 
 import org.apache.hadoop.fs.{FileSystem, Path}
-import org.apache.spark.SparkConf
 import org.apache.spark.deploy.SparkHadoopUtil
 import org.apache.spark.internal.Logging
 import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.serializer.{SerializationStream, SerializerManager}
 import org.apache.spark.shuffle.IndexShuffleBlockResolver.NOOP_REDUCE_ID
-import org.apache.spark.shuffle.{BaseShuffleHandle, ShuffleWriteMetricsReporter, ShuffleWriter}
+import org.apache.spark.shuffle.helper.{S3ShuffleDispatcher, S3ShuffleHelper}
 import org.apache.spark.storage.{BlockManager, ShuffleBlockId, ShuffleDataBlockId}
-import org.apache.spark.{SparkEnv, TaskContext}
+import org.apache.spark.{SparkConf, SparkEnv, TaskContext}
 
 import java.io.{BufferedInputStream, BufferedOutputStream}
 import scala.reflect.ClassTag

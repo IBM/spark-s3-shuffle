@@ -20,15 +20,15 @@
  * limitations under the License.
  */
 
-package org.apache.spark.shuffle
+package org.apache.spark.shuffle.sort
 
-import org.apache.spark.{SparkConf, TaskContext}
 import org.apache.spark.internal.Logging
 import org.apache.spark.scheduler.MapStatus
-import org.apache.spark.shuffle.sort.S3ShuffleDispatcher
-import org.apache.spark.shuffle.sort.io.S3ShuffleMapOutputWriter
+import org.apache.spark.shuffle.helper.S3ShuffleDispatcher
+import org.apache.spark.shuffle.{BaseShuffleHandle, S3ShuffleMapOutputWriter, ShuffleWriteMetricsReporter, ShuffleWriter}
 import org.apache.spark.storage.BlockManager
 import org.apache.spark.util.collection.ExternalSorter
+import org.apache.spark.{SparkConf, TaskContext}
 
 /*
  * This class was adapted from Apache Spark: SortShuffleWriter.scala.
