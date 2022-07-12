@@ -25,7 +25,8 @@ package org.apache.spark.shuffle
 import org.apache.spark.{SparkConf, TaskContext}
 import org.apache.spark.internal.Logging
 import org.apache.spark.scheduler.MapStatus
-import org.apache.spark.shuffle.sort.S3ShuffleMapOutputWriter
+import org.apache.spark.shuffle.sort.S3ShuffleDispatcher
+import org.apache.spark.shuffle.sort.io.S3ShuffleMapOutputWriter
 import org.apache.spark.storage.BlockManager
 import org.apache.spark.util.collection.ExternalSorter
 
@@ -52,6 +53,8 @@ class S3SortShuffleWriter[K, V, C](
   private val numPartitions = partitioner.numPartitions
   private var partitionLengths: Array[Long] = _
 
+  private val dispatcher = S3ShuffleDispatcher.get
+
   override def write(records: Iterator[Product2[K, V]]): Unit = {
 
     sorter = if (dep.mapSideCombine) {
@@ -64,9 +67,26 @@ class S3SortShuffleWriter[K, V, C](
       new ExternalSorter[K, V, V](
         context, aggregator = None, Some(dep.partitioner), ordering = None, dep.serializer)
     }
-    sorter.insertAll(records)
 
-    val mapOutputWriter = new S3ShuffleMapOutputWriter(conf, shuffleId, mapId, numPartitions, writeMetrics)
+    val copyRecords = if (dispatcher.sortShuffleCloneRecords) {
+      records.map {
+        record => {
+          val key: K = record._1 match {
+            case c: Array[_] => c.clone().asInstanceOf[K]
+            case _ => record._1
+          }
+          val value: V = record._2 match {
+            case c: Array[_] => c.clone().asInstanceOf[V]
+            case _ => record._2
+          }
+          (key, value)
+        }
+      }
+    } else records
+
+    sorter.insertAll(copyRecords)
+
+    val mapOutputWriter = new S3ShuffleMapOutputWriter(conf, shuffleId, mapId, numPartitions)
     sorter.writePartitionedMapOutput(shuffleId, mapId, mapOutputWriter)
 
     val writeStartTime = System.nanoTime()

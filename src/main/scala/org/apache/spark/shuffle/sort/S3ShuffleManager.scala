@@ -2,7 +2,7 @@
  * Copyright 2022- IBM Inc. All rights reserved
  * SPDX-License-Identifier: Apache2.0
  */
- 
+
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -26,8 +26,12 @@ import org.apache.hadoop.fs.{Path, PathFilter}
 import org.apache.spark._
 import org.apache.spark.internal.Logging
 import org.apache.spark.shuffle._
+import org.apache.spark.shuffle.api.ShuffleExecutorComponents
+import scala.collection.JavaConverters._
 import org.apache.spark.storage.S3ShuffleReader
+import org.apache.spark.util.collection.OpenHashSet
 
+import java.util.concurrent.ConcurrentHashMap
 import scala.collection.mutable
 
 
@@ -37,12 +41,14 @@ import scala.collection.mutable
 private[spark] class S3ShuffleManager(conf: SparkConf) extends ShuffleManager with Logging {
   logInfo("Configured S3ShuffleManager (SNAPSHOT).")
   private lazy val dispatcher = S3ShuffleDispatcher.get
-
+  private lazy val shuffleExecutorComponents = S3ShuffleManager.loadShuffleExecutorComponents(conf)
   /**
    * A mapping from shuffle ids to the task ids of mappers producing output for those shuffles.
    */
   override lazy val shuffleBlockResolver = new IndexShuffleBlockResolver(conf)
   private val registeredShuffleIds = new mutable.HashSet[Int]()
+
+  private[this] val taskIdMapsForShuffle = new ConcurrentHashMap[Int, OpenHashSet[Long]]()
 
   /**
    * Obtains a [[ShuffleHandle]] to pass to tasks.
@@ -60,11 +66,10 @@ private[spark] class S3ShuffleManager(conf: SparkConf) extends ShuffleManager wi
       return new BypassMergeSortShuffleHandle[K, V](
         shuffleId, dependency.asInstanceOf[ShuffleDependency[K, V, V]])
     }
-    else if (SortShuffleManager.canUseSerializedShuffle(dependency)) {
-      logInfo("Could use SerializedShuffle")
-      //      // Otherwise, try to buffer map outputs in a serialized form, since this is more efficient:
-      //      new SerializedShuffleHandle[K, V](
-      //        shuffleId, dependency.asInstanceOf[ShuffleDependency[K, V, V]])
+    else if (SortShuffleManager.canUseSerializedShuffle(dependency) && dispatcher.allowSerializedShuffle) {
+      // Otherwise, try to buffer map outputs in a serialized form, since this is more efficient:
+      new SerializedShuffleHandle[K, V](
+        shuffleId, dependency.asInstanceOf[ShuffleDependency[K, V, V]])
     }
     // Otherwise, buffer map outputs in a deserialized form:
     new BaseShuffleHandle(shuffleId, dependency)
@@ -93,18 +98,23 @@ private[spark] class S3ShuffleManager(conf: SparkConf) extends ShuffleManager wi
                                 mapId: Long,
                                 context: TaskContext,
                                 metrics: ShuffleWriteMetricsReporter): ShuffleWriter[K, V] = {
+    val mapTaskIds = taskIdMapsForShuffle.computeIfAbsent(
+      handle.shuffleId, _ => new OpenHashSet[Long](16))
+    mapTaskIds.synchronized {
+      mapTaskIds.add(mapId)
+    }
     val env = SparkEnv.get
     handle match {
-      //      case unsafeShuffleHandle: SerializedShuffleHandle[K @unchecked, V @unchecked] =>
-      //        new UnsafeShuffleWriter(
-      //          env.blockManager,
-      //          context.taskMemoryManager(),
-      //          unsafeShuffleHandle,
-      //          mapId,
-      //          context,
-      //          env.conf,
-      //          metrics,
-      //          shuffleExecutorComponents)
+      case unsafeShuffleHandle: SerializedShuffleHandle[K@unchecked, V@unchecked] =>
+        new UnsafeShuffleWriter(
+          env.blockManager,
+          context.taskMemoryManager(),
+          unsafeShuffleHandle,
+          mapId,
+          context,
+          env.conf,
+          metrics,
+          shuffleExecutorComponents)
       case bypassMergeSortHandle: BypassMergeSortShuffleHandle[K@unchecked, V@unchecked] =>
         new S3BypassMergeSortShuffleWriter(
           conf,
@@ -169,5 +179,21 @@ private[spark] class S3ShuffleManager(conf: SparkConf) extends ShuffleManager wi
       logInfo(f"Manually cleanup shuffle files in ${dispatcher.rootDir}")
     }
     shuffleBlockResolver.stop()
+  }
+}
+
+private[spark] object S3ShuffleManager {
+  private def loadShuffleExecutorComponents(conf: SparkConf): ShuffleExecutorComponents = {
+    if (conf.get("spark.shuffle.sort.io.plugin.class") != "org.apache.spark.shuffle.sort.io.S3ShuffleDataIO") {
+      throw new RuntimeException("\"spark.shuffle.sort.io.plugin.class\" needs to be set to \"org.apache.spark.shuffle.sort.io.S3ShuffleDataIO\" in order for this plugin to work!")
+    }
+    val executorComponents = ShuffleDataIOUtils.loadShuffleDataIO(conf).executor()
+    val extraConfigs = conf.getAllWithPrefix(ShuffleDataIOUtils.SHUFFLE_SPARK_CONF_PREFIX)
+                           .toMap
+    executorComponents.initializeExecutor(
+      conf.getAppId,
+      SparkEnv.get.executorId,
+      extraConfigs.asJava)
+    executorComponents
   }
 }

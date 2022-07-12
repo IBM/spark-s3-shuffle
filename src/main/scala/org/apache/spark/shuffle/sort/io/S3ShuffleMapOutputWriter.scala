@@ -3,21 +3,20 @@
  * SPDX-License-Identifier: Apache2.0
  */
 
-package org.apache.spark.shuffle.sort
+package org.apache.spark.shuffle.sort.io
 
-import java.nio.channels.Channels
 import org.apache.hadoop.fs.FSDataOutputStream
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.config.SHUFFLE_UNSAFE_FILE_OUTPUT_BUFFER_SIZE
 import org.apache.spark.shuffle.IndexShuffleBlockResolver.NOOP_REDUCE_ID
-import org.apache.spark.shuffle.ShuffleWriteMetricsReporter
 import org.apache.spark.shuffle.api.metadata.MapOutputCommitMessage
 import org.apache.spark.shuffle.api.{ShuffleMapOutputWriter, ShufflePartitionWriter, WritableByteChannelWrapper}
+import org.apache.spark.shuffle.sort.{S3ShuffleDispatcher, S3ShuffleHelper}
 import org.apache.spark.storage.ShuffleDataBlockId
 
 import java.io.{BufferedOutputStream, IOException, OutputStream}
-import java.nio.channels.WritableByteChannel
+import java.nio.channels.{Channels, WritableByteChannel}
 import java.util.Optional
 
 /**
@@ -32,7 +31,6 @@ class S3ShuffleMapOutputWriter(
                                 shuffleId: Int,
                                 mapId: Long,
                                 numPartitions: Int,
-                                writeMetrics: ShuffleWriteMetricsReporter
                               ) extends ShuffleMapOutputWriter with Logging {
   val dispatcher = S3ShuffleDispatcher.get
 
@@ -97,23 +95,22 @@ class S3ShuffleMapOutputWriter(
 
     if (bufferedBlockStream != null) {
       bufferedBlockStream.flush()
-      bufferedBlockStream.close()
     }
     if (blockStream != null) {
       blockStream.flush()
       if (blockStream.getPos != totalBytesWritten) {
         throw new RuntimeException(f"S3ShuffleMapOutputWriter: Unexpected output length ${blockStream.getPos}, expected: ${totalBytesWritten}.")
       }
-      blockStream.close()
+    }
+    if (bufferedBlockStream != null) {
+      // Closes the underlying blockstream as well!
+      bufferedBlockStream.close()
     }
 
     // Write index
     if (partitionLengths.sum > 0 || S3ShuffleDispatcher.get.alwaysCreateIndex) {
-      val writeStartTime = System.nanoTime()
       S3ShuffleHelper.writePartitionLengths(shuffleId, mapId, partitionLengths)
-      writeMetrics.incWriteTime(System.nanoTime() - writeStartTime)
     }
-    writeMetrics.incBytesWritten(totalBytesWritten)
     MapOutputCommitMessage.of(partitionLengths)
   }
 
@@ -210,6 +207,8 @@ class S3ShuffleMapOutputWriter(
 
     override def close(): Unit = {
       partitionLengths(reduceId) = numBytesWritten
+      bufferedBlockStream.flush()
+      blockStream.flush()
       totalBytesWritten += numBytesWritten
     }
   }

@@ -30,7 +30,9 @@ class S3ShuffleDispatcher extends Logging {
   val alwaysCreateIndex: Boolean = conf.getBoolean("spark.shuffle.s3.alwaysCreateIndex", defaultValue = false)
   val useBlockManager: Boolean = conf.getBoolean("spark.shuffle.s3.useBlockManager", defaultValue = true)
   val forceBatchFetch: Boolean = conf.getBoolean("spark.shuffle.s3.forceBatchFetch", defaultValue = false)
+  val allowSerializedShuffle: Boolean = conf.getBoolean("spark.shuffle.s3.allowSerializedShuffle", defaultValue = true)
   val forceBypassMergeSort: Boolean = conf.getBoolean("spark.shuffle.s3.forceBypassMergeSort", defaultValue = false)
+  val sortShuffleCloneRecords: Boolean = conf.getBoolean("spark.shuffle.s3.sort.cloneRecords", defaultValue = false)
 
   val rootDir: String = f"${rootDir_}/${startTime}-${appId}/"
   val fs: FileSystem = FileSystem.get(URI.create(rootDir), {
@@ -43,7 +45,9 @@ class S3ShuffleDispatcher extends Logging {
   logInfo(s"- spark.shuffle.s3.alwaysCreateIndex=${alwaysCreateIndex}")
   logInfo(s"- spark.shuffle.s3.useBlockManager=${useBlockManager}")
   logInfo(s"- spark.shuffle.s3.forceBatchFetch=${forceBatchFetch}")
+  logInfo(s"- spark.shuffle.s3.allowSerializedShuffle=${allowSerializedShuffle}")
   logInfo(s"- spark.shuffle.s3.forceBypassMergeSort=${forceBypassMergeSort}")
+  logInfo(s"- spark.shuffle.s3.sort.cloneRecords=${sortShuffleCloneRecords}")
 
   def removeRoot(): Boolean = {
     fs.delete(new Path(rootDir), true)
