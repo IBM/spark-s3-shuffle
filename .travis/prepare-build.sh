@@ -9,7 +9,7 @@ ROOT="$(cd "`dirname $0`/../" && pwd)"
 cd "${ROOT}"
 
 TRAVIS_TAG=${TRAVIS_TAG:-""}
-VERSION=$(git rev-parse --short HEAD)
+VERSION=$(git describe || echo "v0.0.1-test")
 if [[ -n "${TRAVIS_TAG}" ]]; then
   VERSION="${TRAVIS_TAG}"
 fi
