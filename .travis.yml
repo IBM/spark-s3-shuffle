@@ -2,29 +2,38 @@
 # Copyright 2022- IBM Inc. All rights reserved
 # SPDX-License-Identifier: Apache2.0
 #
+dist: focal
 sudo: false
 language: scala
-scala: 2.12.15
-jdk: openjdk8
+jdk: openjdk11
 
 cache:
   directories:
     - "$HOME/.cache"
     - "$HOME/.m2"
+    - "$HOME/.sbt"
 
 before_install:
   - ./.travis/prepare-build.sh
 
 jobs:
   include:
-    - stage: package
-      script:
-        - mvn -DskipTests clean package
-    - stage: deploy
-      script:
-        - git config --local user.name "Travis CI"
-        - git config --local user.email "psp@zurich.ibm.com"
+    - os: linux
+      scala: 2.12.15
+      env: SPARK_VERSION=3.2.1 SCALA_VERSION=2.12.15
+    - os: linux
+      scala: 2.13.5
+      env: SPARK_VERSION=3.2.1 SCALA_VERSION=2.13.5
+    - os: linux
+      scala: 2.12.15
+      env: SPARK_VERSION=3.3.0 SCALA_VERSION=2.12.15
+    - os: linux
+      scala: 2.13.8
+      env: SPARK_VERSION=3.3.0 SCALA_VERSION=2.13.8
 
-stages:
-  - package
-  - deploy
+script:
+  - sbt package
+  - ls target/scala-*/*.jar
+
+notifications:
+  email: false

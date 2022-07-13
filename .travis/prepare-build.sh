@@ -12,14 +12,23 @@ VERSION=$(git rev-parse --short HEAD)
 if [[ -n "${TRAVIS_TAG}" ]]; then
   VERSION="${TRAVIS_TAG}"
 fi
+# Strip v-prefix
+VERSION=${VERSION:1}
 
 # Change revision.
 FILES=(
-  "${ROOT}/pom.xml"
-  "${ROOT}/src/main/scala/org/apache/spark/shuffle/sort/S3ShuffleManager.scala"
+  "${ROOT}/build.sbt"
+  "${ROOT}/src/main/scala/org/apache/spark/shuffle/S3ShuffleManager.scala"
 )
 
 for i in "${FILES[@]}"; do
   echo "Replacing SNAPSHOT in ${i} with ${VERSION}"
   sed -i "s/SNAPSHOT/${VERSION}/g" "${i}"
 done
+
+SCALA_VERSION=${SCALA_VERSION:-""}
+if [[ "${SCALA_VERSION:0:4}" == "2.13" ]]; then
+  echo "Removing tests from build since ${SCALA_VERSION} is not supported!"
+  sed -i "/TRAVIS_SCALA_WORKAROUND_REMOVE_LINE/d" "${ROOT}/build.sbt"
+  rm -rf "${ROOT}/src/test"
+fi

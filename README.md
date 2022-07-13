@@ -15,13 +15,13 @@ issue by cloning the types `Array[T]`.
 ## Building
 
 ```bash
-mvn -DskipTests clean package
-```
+sbt package  # Creates a minimal jar.
+sbt assembly # Creates the full assembly with all dependencies, notably hadoop cloud.
+ ```
 
-## Configuration options
+## Required configuration
 
-## Required options
-
+These configuration values need to be passed to Spark to load and configure the plugin:
 - `spark.shuffle.manager`: The shuffle manager. Needs to be set to `org.apache.spark.shuffle.S3ShuffleManager`.
 - `spark.shuffle.sort.io.plugin.class`: The sort io plugin class. Needs to be set to 
   `org.apache.spark.shuffle.S3ShuffleDataIO`.
@@ -30,10 +30,12 @@ mvn -DskipTests clean package
     - `cos://zrlio-tmp.resources/s3-benchmark-shuffle` (Hadoop-Cloud + Stocator)
 
   The plugin will create an additional path based on the start time and the Spark app id.
+
 ### Debug options / optimizations
 
-- `spark.shuffle.s3.supportsUnbuffer`: Streams can be unbuffered instead of closed (default: `true`,
-  if Storage-backend is S3A, `false` otherwise).
+These are optional configuration values that control how s3-shuffle behaves.
+- `spark.shuffle.s3.forceBypassMergeSort`: Bypass SortShuffle (default: `false`)
+- `spark.shuffle.s3.allowSerializedShuffle`: Allow serialized shuffle (default `true`)
 - `spark.shuffle.s3.sort.cloneRecords`: Clone records before sorting (workaround for terasort, default: `false`)
 - `spark.shuffle.s3.cleanup`: Cleanup the shuffle files (default: `true`)
 - `spark.shuffle.s3.alwaysCreateIndex`: Always create an index file, even if all partitions have empty length (
@@ -41,12 +43,12 @@ mvn -DskipTests clean package
 - `spark.shuffle.s3.useBlockManager`: Use the Spark block manager to compute blocks (default: `true`). Note: Disabling
   this feature might lead to invalid results for some workloads.
 - `spark.shuffle.s3.forceBatchFetch`: Force batch fetch for Shuffle Blocks (default: `false`)
-- `spark.shuffle.s3.forceBypassMergeSort`: Bypass SortShuffle (default: `false`)
-- `spark.shuffle.s3.allowSerializedShuffle`: Allow serialized shuffle (default `true`)
+- `spark.shuffle.s3.supportsUnbuffer`: Streams can be unbuffered instead of closed (default: `true`,
+  if Storage-backend is S3A, `false` otherwise).
 
 ## Testing
 
-The tests requires the following environment variables to be set:
+The tests require the following environment variables to be set:
 - `AWS_ACCESS_KEY_ID`: Access key to use for the S3 Shuffle service.
 - `AWS_SECRET_ACCESS_KEY`: Secret key to use for the S3 Shuffle service.
 - `S3_ENDPOINT_URL`: Endpoint URL of the S3 Service (e.g. `http://10.40.0.29:9000` or
@@ -58,8 +60,8 @@ The tests requires the following environment variables to be set:
 
 Copy one of the following files to your spark path:
 
-- `spark-s3-shuffle_2.12-1.0-SNAPSHOT-jar-with-dependencies.jar`
-- `spark-s3-shuffle_2.12-1.0-SNAPSHOT.jar`
+- `spark-s3-shuffle_2.12-1.0-SNAPSHOT-jar-with-dependencies.jar` (created by `sbt assembly`)
+- `spark-s3-shuffle_2.12-1.0-SNAPSHOT.jar` (created by `sbt package`)
 
 ### With S3 Plugin
 
@@ -113,3 +115,4 @@ Add the following lines to your Spark configuration:
     --conf spark.shuffle.s3.rootDir=SHUFFLE_ROOT
 ```
 
+## Running the tests in 

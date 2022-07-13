@@ -82,8 +82,6 @@ class S3SortShuffleTest {
 
     val partitionLengths = S3ShuffleHelper.getPartitionLengthsCached(shuffleId, mapId)
 
-    assert(partitionLengths.sum == metrics.bytesWritten)
-
     val readMetrics = new TempShuffleReadMetrics()
     val reader = new S3ShuffleReader[Int, Int](
       conf,

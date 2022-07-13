@@ -6,3 +6,7 @@
 # Folders
 .idea
 target
+
+*.class
+*.log
+build.sbt_back
