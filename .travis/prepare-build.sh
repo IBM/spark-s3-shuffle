@@ -8,6 +8,7 @@ set -euo pipefail
 ROOT="$(cd "`dirname $0`/../" && pwd)"
 cd "${ROOT}"
 
+TRAVIS_TAG=${TRAVIS_TAG:-""}
 VERSION=$(git rev-parse --short HEAD)
 if [[ -n "${TRAVIS_TAG}" ]]; then
   VERSION="${TRAVIS_TAG}"
