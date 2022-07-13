@@ -8,12 +8,9 @@ set -euo pipefail
 ROOT="$(cd "`dirname $0`/../" && pwd)"
 cd "${ROOT}"
 
-VERSION=$(git rev-parse --short HEAD)
-if [[ -n "${TRAVIS_TAG}" ]]; then
-  VERSION="${TRAVIS_TAG}"
-fi
-# Strip v-prefix
+VERSION=$(git describe || echo "vrev-$(git rev-parse --short HEAD)")
 VERSION=${VERSION:1}
+echo "Version: ${VERSION}"
 
 # Change revision.
 FILES=(
