@@ -13,10 +13,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - env:
-              SPARK_VERSION: 3.2.1
-              SCALA_VERSION: 2.13.5
+          - spark: 3.2.1
+            scala: 2.13.5
     runs-on: ubuntu-latest
+    env:
+      SPARK_VERSION: ${{ matrix.spark }}
+      SCALA_VERSION: ${{ matrix.scala }}
     steps:
     - name: Checkout
       uses: actions/checkout@v2
