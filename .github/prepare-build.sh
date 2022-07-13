@@ -9,12 +9,14 @@ ROOT="$(cd "`dirname $0`/../" && pwd)"
 cd "${ROOT}"
 
 TRAVIS_TAG=${TRAVIS_TAG:-""}
-VERSION=$(git describe || echo "v0.0.1-test")
-if [[ -n "${TRAVIS_TAG}" ]]; then
-  VERSION="${TRAVIS_TAG}"
+VERSION=$(git describe || echo "vtest-${GITHUB_REF_NAME:-"gh"}")
+if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+  VERSION="${GITHUB_REF_NAME}"
 fi
 # Strip v-prefix
 VERSION=${VERSION:1}
+
+echo "Version: ${VERSION}"
 
 # Change revision.
 FILES=(

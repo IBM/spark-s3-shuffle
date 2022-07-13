@@ -36,7 +36,7 @@ jobs:
         cache: sbt
     - name: Prepare build
       shell: bash
-      run: ./.travis/prepare-build.sh
+      run: ./.github/prepare-build.sh
     - name: Package
       shell: bash
       run: |
