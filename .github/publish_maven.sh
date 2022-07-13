@@ -8,8 +8,10 @@ set -euo pipefail
 ROOT="$(cd "`dirname $0`/../" && pwd)"
 cd "${ROOT}"
 
-GIT_DESCRIBE=$(git describe || echo "v0.0.1-test")
-VERSION=${GIT_DESCRIBE:1}
+VERSION=$(git describe || echo "vrev-$(git rev-parse --short HEAD)")
+VERSION=${VERSION:1}
+echo "Version: ${VERSION}"
+
 FILE=$(ls target/scala*/*.jar)
 POM=$(ls target/scala*/*.pom)
 
