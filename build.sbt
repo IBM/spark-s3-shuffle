@@ -8,7 +8,7 @@ organization := "com.ibm"
 name := "spark-s3-shuffle"
 version := "SNAPSHOT"
 
-val sparkVersion = sys.env.getOrElse("SPARK_VERSION", "3.2.1")
+val sparkVersion = sys.env.getOrElse("SPARK_VERSION", "3.3.1")
 
 libraryDependencies ++= Seq(
   "org.apache.spark" %% "spark-core" % sparkVersion % "provided",
