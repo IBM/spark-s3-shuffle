@@ -5,13 +5,19 @@
 
 package org.apache.spark.shuffle
 
-import org.apache.spark.shuffle.api.{ShuffleDataIO, ShuffleDriverComponents, ShuffleExecutorComponents, ShuffleMapOutputWriter}
+import org.apache.spark.shuffle.api.{
+  ShuffleDataIO,
+  ShuffleDriverComponents,
+  ShuffleExecutorComponents,
+  ShuffleMapOutputWriter,
+  SingleSpillShuffleMapOutputWriter
+}
 import org.apache.spark.shuffle.helper.S3ShuffleDispatcher
 import org.apache.spark.storage.BlockManagerMaster
 import org.apache.spark.{SparkConf, SparkEnv}
 
 import java.util
-import java.util.Collections
+import java.util.{Collections, Optional}
 
 class S3ShuffleDataIO(sparkConf: SparkConf) extends ShuffleDataIO {
   override def executor(): ShuffleExecutorComponents = new S3ShuffleExecutorComponents()
@@ -20,7 +26,6 @@ class S3ShuffleDataIO(sparkConf: SparkConf) extends ShuffleDataIO {
 
   private class S3ShuffleExecutorComponents extends ShuffleExecutorComponents {
     private val blockManager = SparkEnv.get.blockManager
-    private val blockResolver = new IndexShuffleBlockResolver(sparkConf, blockManager)
 
     override def initializeExecutor(appId: String, execId: String, extraConfigs: util.Map[String, String]): Unit = {
       // ToDo: Implement dispatcher.
@@ -29,11 +34,17 @@ class S3ShuffleDataIO(sparkConf: SparkConf) extends ShuffleDataIO {
     override def createMapOutputWriter(shuffleId: Int, mapTaskId: Long, numPartitions: Int): ShuffleMapOutputWriter = {
       new S3ShuffleMapOutputWriter(sparkConf, shuffleId, mapTaskId, numPartitions)
     }
+
+    override def createSingleFileMapOutputWriter(
+                                                  shuffleId: Int,
+                                                  mapId: Long
+                                                ): Optional[SingleSpillShuffleMapOutputWriter] = {
+      Optional.of(new S3SingleSpillShuffleMapOutputWriter(shuffleId, mapId))
+    }
   }
 
   private class S3ShuffleDriverComponents extends ShuffleDriverComponents {
     private var blockManagerMaster: BlockManagerMaster = null
-    private var dispatcher: S3ShuffleDispatcher = null
 
     override def initializeApplication(): util.Map[String, String] = {
       blockManagerMaster = SparkEnv.get.blockManager.master
@@ -52,7 +63,7 @@ class S3ShuffleDataIO(sparkConf: SparkConf) extends ShuffleDataIO {
     }
 
     override def removeShuffle(shuffleId: Int, blocking: Boolean): Unit = {
-
+      super.removeShuffle(shuffleId, blocking)
     }
   }
 }

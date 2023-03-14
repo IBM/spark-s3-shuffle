@@ -50,7 +50,7 @@ class S3ShuffleBlockIterator(
             // The index does not exist. This looks like a COS/Consistency bug.
             throw throwable
           }
-          // Assume that everything is okay.
+        // Assume that everything is okay.
       }
     } while (shuffleBlocks.hasNext)
     None

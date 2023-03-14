@@ -15,7 +15,7 @@ echo "Version: ${VERSION}"
 # Change revision.
 FILES=(
   "${ROOT}/build.sbt"
-  "${ROOT}/src/main/scala/org/apache/spark/shuffle/S3ShuffleManager.scala"
+  "${ROOT}/src/main/scala/org/apache/spark/shuffle/sort/S3ShuffleManager.scala"
 )
 
 for i in "${FILES[@]}"; do

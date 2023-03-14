@@ -20,14 +20,14 @@
  * limitations under the License.
  */
 
-package org.apache.spark.shuffle
+package org.apache.spark.shuffle.sort
 
 import org.apache.hadoop.fs.{Path, PathFilter}
 import org.apache.spark._
 import org.apache.spark.internal.Logging
+import org.apache.spark.shuffle._
 import org.apache.spark.shuffle.api.ShuffleExecutorComponents
 import org.apache.spark.shuffle.helper.{S3ShuffleDispatcher, S3ShuffleHelper}
-import org.apache.spark.shuffle.sort._
 import org.apache.spark.storage.S3ShuffleReader
 import org.apache.spark.util.collection.OpenHashSet
 
@@ -49,8 +49,6 @@ private[spark] class S3ShuffleManager(conf: SparkConf) extends ShuffleManager wi
   override lazy val shuffleBlockResolver = new IndexShuffleBlockResolver(conf)
   private val registeredShuffleIds = new mutable.HashSet[Int]()
 
-  private[this] val taskIdMapsForShuffle = new ConcurrentHashMap[Int, OpenHashSet[Long]]()
-
   /**
    * Obtains a [[ShuffleHandle]] to pass to tasks.
    */
@@ -58,22 +56,25 @@ private[spark] class S3ShuffleManager(conf: SparkConf) extends ShuffleManager wi
                                          shuffleId: Int,
                                          dependency: ShuffleDependency[K, V, C]): ShuffleHandle = {
     registeredShuffleIds.add(shuffleId)
-    if (SortShuffleWriter.shouldBypassMergeSort(conf, dependency) || dispatcher.forceBypassMergeSort) {
+    if (SortShuffleWriter.shouldBypassMergeSort(conf, dependency)) {
       // If there are fewer than spark.shuffle.sort.bypassMergeThreshold partitions and we don't
       // need map-side aggregation, then write numPartitions files directly and just concatenate
       // them at the end. This avoids doing serialization and deserialization twice to merge
       // together the spilled files, which would happen with the normal code path. The downside is
       // having multiple files open at a time and thus more memory allocated to buffers.
-      return new BypassMergeSortShuffleHandle[K, V](
+      logInfo(f"Using BypassMergeSortShuffleWriter for ${shuffleId}")
+      new BypassMergeSortShuffleHandle[K, V](
         shuffleId, dependency.asInstanceOf[ShuffleDependency[K, V, V]])
-    }
-    else if (SortShuffleManager.canUseSerializedShuffle(dependency) && dispatcher.allowSerializedShuffle) {
+    } else if (SortShuffleManager.canUseSerializedShuffle(dependency)) {
       // Otherwise, try to buffer map outputs in a serialized form, since this is more efficient:
+      logInfo(f"Using UnsafeShuffleWriter for ${shuffleId}")
       new SerializedShuffleHandle[K, V](
         shuffleId, dependency.asInstanceOf[ShuffleDependency[K, V, V]])
+    } else {
+      logInfo(f"Using SortShuffleWriter for ${shuffleId}")
+      // Otherwise, buffer map outputs in a deserialized form:
+      new BaseShuffleHandle(shuffleId, dependency)
     }
-    // Otherwise, buffer map outputs in a deserialized form:
-    new BaseShuffleHandle(shuffleId, dependency)
   }
 
   override def getReader[K, C](
@@ -99,11 +100,6 @@ private[spark] class S3ShuffleManager(conf: SparkConf) extends ShuffleManager wi
                                 mapId: Long,
                                 context: TaskContext,
                                 metrics: ShuffleWriteMetricsReporter): ShuffleWriter[K, V] = {
-    val mapTaskIds = taskIdMapsForShuffle.computeIfAbsent(
-      handle.shuffleId, _ => new OpenHashSet[Long](16))
-    mapTaskIds.synchronized {
-      mapTaskIds.add(mapId)
-    }
     val env = SparkEnv.get
     handle match {
       case unsafeShuffleHandle: SerializedShuffleHandle[K@unchecked, V@unchecked] =>
@@ -117,21 +113,16 @@ private[spark] class S3ShuffleManager(conf: SparkConf) extends ShuffleManager wi
           metrics,
           shuffleExecutorComponents)
       case bypassMergeSortHandle: BypassMergeSortShuffleHandle[K@unchecked, V@unchecked] =>
-        new S3BypassMergeSortShuffleWriter(
-          conf,
+        new BypassMergeSortShuffleWriter(
           env.blockManager,
           bypassMergeSortHandle,
           mapId,
-          context,
-          metrics
+          env.conf,
+          metrics,
+          shuffleExecutorComponents
           )
       case other: BaseShuffleHandle[K@unchecked, V@unchecked, _] =>
-        new S3SortShuffleWriter(conf,
-                                env.blockManager,
-                                other,
-                                mapId,
-                                context,
-                                metrics)
+        new SortShuffleWriter(other, mapId, context, shuffleExecutorComponents)
     }
   }
 
