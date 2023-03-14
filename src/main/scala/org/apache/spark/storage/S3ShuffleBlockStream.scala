@@ -23,7 +23,7 @@ class S3ShuffleBlockStream(
                           ) extends InputStream with Logging {
   private lazy val dispatcher = S3ShuffleDispatcher.get
   private lazy val blockId = ShuffleDataBlockId(shuffleId, mapId, NOOP_REDUCE_ID)
-  private lazy val blockStream = {
+  private lazy val stream = {
     try {
       if (dispatcher.supportsUnbuffer)
         dispatcher.openCachedBlock(blockId)
@@ -51,10 +51,10 @@ class S3ShuffleBlockStream(
     }
     this.synchronized {
       if (dispatcher.supportsUnbuffer) {
-        blockStream.unbuffer()
+        stream.unbuffer()
         streamClosed = true
       } else {
-        blockStream.close()
+        stream.close()
         streamClosed = true
       }
     }
@@ -67,7 +67,7 @@ class S3ShuffleBlockStream(
     }
     this.synchronized {
       try {
-        blockStream.readFully(startPosition + numBytes, singleByteBuffer)
+        stream.readFully(startPosition + numBytes, singleByteBuffer)
         numBytes += 1
         if (numBytes >= maxBytes) {
           close()
@@ -91,7 +91,7 @@ class S3ShuffleBlockStream(
       assert(maxLength >= 0)
       val length = math.min(maxLength, len)
       try {
-        blockStream.readFully(startPosition + numBytes, b, off, length)
+        stream.readFully(startPosition + numBytes, b, off, length)
         numBytes += length
         if (numBytes >= maxBytes) {
           close()

@@ -16,6 +16,7 @@ import org.apache.spark.shuffle.helper.{S3ShuffleDispatcher, S3ShuffleHelper}
 import org.apache.spark.storage.ShuffleDataBlockId
 
 import java.io.{BufferedOutputStream, IOException, OutputStream}
+import java.nio.ByteBuffer
 import java.nio.channels.{Channels, WritableByteChannel}
 import java.util.Optional
 
@@ -36,23 +37,23 @@ class S3ShuffleMapOutputWriter(
 
   /* Target block for writing */
   private val shuffleBlock = ShuffleDataBlockId(shuffleId, mapId, NOOP_REDUCE_ID)
-  private var blockStream: FSDataOutputStream = _
-  private var bufferedBlockStream: OutputStream = _
-  private var blockStreamAsChannel: WritableByteChannel = _
+  private var stream: FSDataOutputStream = _
+  private var bufferedStream: OutputStream = _
+  private var bufferedStreamAsChannel: WritableByteChannel = _
   private var reduceIdStreamPosition: Long = 0
 
   def initStream(): Unit = {
-    if (blockStream == null) {
+    if (stream == null) {
       val bufferSize = conf.get(SHUFFLE_UNSAFE_FILE_OUTPUT_BUFFER_SIZE).toInt * 1024
-      blockStream = dispatcher.createBlock(shuffleBlock)
-      bufferedBlockStream = new BufferedOutputStream(blockStream, bufferSize)
+      stream = dispatcher.createBlock(shuffleBlock)
+      bufferedStream = new BufferedOutputStream(stream, bufferSize)
     }
   }
 
   def initChannel(): Unit = {
-    if (blockStreamAsChannel == null) {
+    if (bufferedStreamAsChannel == null) {
       initStream()
-      blockStreamAsChannel = Channels.newChannel(bufferedBlockStream)
+      bufferedStreamAsChannel = Channels.newChannel(bufferedStream)
     }
   }
 
@@ -71,15 +72,15 @@ class S3ShuffleMapOutputWriter(
     if (reducePartitionId >= numPartitions) {
       throw new RuntimeException("Precondition: Invalid partition id.")
     }
-    if (bufferedBlockStream != null) {
-      bufferedBlockStream.flush()
+    if (bufferedStream != null) {
+      bufferedStream.flush()
     }
-    if (blockStream != null) {
-      blockStream.flush()
-      reduceIdStreamPosition = blockStream.getPos
+    if (stream != null) {
+      stream.flush()
+      reduceIdStreamPosition = stream.getPos
     }
     lastPartitionWriterId = reducePartitionId
-    return new S3ShufflePartitionWriter(reducePartitionId)
+    new S3ShufflePartitionWriter(reducePartitionId)
   }
 
   /**
@@ -89,22 +90,20 @@ class S3ShuffleMapOutputWriter(
    * @return
    */
   override def commitAllPartitions(checksums: Array[Long]): MapOutputCommitMessage = {
-    if (checksums.length != numPartitions) {
-      throw new RuntimeException("Invalid checksum length.")
+    if (bufferedStream != null) {
+      bufferedStream.flush()
     }
-
-    if (bufferedBlockStream != null) {
-      bufferedBlockStream.flush()
-    }
-    if (blockStream != null) {
-      blockStream.flush()
-      if (blockStream.getPos != totalBytesWritten) {
-        throw new RuntimeException(f"S3ShuffleMapOutputWriter: Unexpected output length ${blockStream.getPos}, expected: ${totalBytesWritten}.")
+    if (stream != null) {
+      if (stream.getPos != totalBytesWritten) {
+        throw new RuntimeException(f"S3ShuffleMapOutputWriter: Unexpected output length ${stream.getPos}, expected: ${totalBytesWritten}.")
       }
     }
-    if (bufferedBlockStream != null) {
-      // Closes the underlying blockstream as well!
-      bufferedBlockStream.close()
+    if (bufferedStreamAsChannel != null) {
+      bufferedStreamAsChannel.close()
+    }
+    if (bufferedStream != null) {
+      // Closes the underlying stream as well!
+      bufferedStream.close()
     }
 
     // Write index
@@ -119,14 +118,14 @@ class S3ShuffleMapOutputWriter(
   }
 
   private def cleanUp(): Unit = {
-    if (blockStreamAsChannel != null) {
-      blockStreamAsChannel.close()
+    if (bufferedStreamAsChannel != null) {
+      bufferedStreamAsChannel.close()
     }
-    if (bufferedBlockStream != null) {
-      bufferedBlockStream.close()
+    if (bufferedStream != null) {
+      bufferedStream.close()
     }
-    if (blockStream != null) {
-      blockStream.close()
+    if (stream != null) {
+      stream.close()
     }
   }
 
@@ -172,7 +171,7 @@ class S3ShuffleMapOutputWriter(
       if (isClosed) {
         throw new IOException("S3ShuffleOutputStream is already closed.")
       }
-      bufferedBlockStream.write(b)
+      bufferedStream.write(b)
       byteCount += 1
     }
 
@@ -180,7 +179,7 @@ class S3ShuffleMapOutputWriter(
       if (isClosed) {
         throw new IOException("S3ShuffleOutputStream is already closed.")
       }
-      bufferedBlockStream.write(b, off, len)
+      bufferedStream.write(b, off, len)
       byteCount += len
     }
 
@@ -188,7 +187,7 @@ class S3ShuffleMapOutputWriter(
       if (isClosed) {
         throw new IOException("S3ShuffleOutputStream is already closed.")
       }
-      bufferedBlockStream.flush()
+      bufferedStream.flush()
     }
 
     override def close(): Unit = {
@@ -198,18 +197,47 @@ class S3ShuffleMapOutputWriter(
     }
   }
 
-  private class S3ShufflePartitionWriterChannel(reduceId: Int) extends WritableByteChannelWrapper {
-    private val startPosition: Long = blockStream.getPos
+  private class S3ShufflePartitionWriterChannel(reduceId: Int)
+    extends WritableByteChannelWrapper {
+    private val partChannel = new S3PartitionWritableByteChannel(bufferedStreamAsChannel)
 
-    override def channel(): WritableByteChannel = blockStreamAsChannel
+    override def channel(): WritableByteChannel = {
+      partChannel
+    }
 
-    def numBytesWritten: Long = blockStream.getPos - startPosition
+    def numBytesWritten: Long = {
+      partChannel.numBytesWritten()
+    }
 
     override def close(): Unit = {
       partitionLengths(reduceId) = numBytesWritten
-      bufferedBlockStream.flush()
-      blockStream.flush()
       totalBytesWritten += numBytesWritten
+    }
+  }
+
+  private class S3PartitionWritableByteChannel(channel: WritableByteChannel)
+    extends WritableByteChannel {
+
+    private var count: Long = 0
+
+    def numBytesWritten(): Long = {
+      count
+    }
+
+    override def isOpen(): Boolean = {
+      channel.isOpen()
+    }
+
+    override def close(): Unit = {
+    }
+
+    override def write(x: ByteBuffer): Int = {
+      var c = 0
+      while (x.hasRemaining()) {
+        c += channel.write(x)
+      }
+      count += c
+      c
     }
   }
 }

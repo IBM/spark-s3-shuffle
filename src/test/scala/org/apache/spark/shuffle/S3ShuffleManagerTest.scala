@@ -250,7 +250,7 @@ class S3ShuffleManagerTest {
     .set("spark.shuffle.s3.rootDir", sys.env("S3_SHUFFLE_ROOT"))
     .set("spark.dynamicAllocation.enabled", "true")
     .set("spark.local.dir", "./spark-temp") // Configure the working dir.
-    .set("spark.shuffle.manager", "org.apache.spark.shuffle.S3ShuffleManager")
+    .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.S3ShuffleManager")
     .set("spark.shuffle.sort.io.plugin.class", "org.apache.spark.shuffle.S3ShuffleDataIO")
     .set("spark.shuffle.s3.forceBypassMergeSort", "false")
 }

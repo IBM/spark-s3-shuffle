@@ -6,12 +6,6 @@ It uses the Java Hadoop-Filesystem abstraction for interoperability for COS, S3A
 *Note*: This plugin is based on [Apache Spark Pull Request #34864](https://github.com/apache/spark/pull/34864/files). It has
 since been significantly rewritten.
 
-## Known issues
-
-Some terasort implementations reuse the same byte buffer for each record. This produces invalid results with the
-sort shuffle implementation for S3. The configuration option `spark.shuffle.s3.sort.cloneRecords` mitigates this 
-issue by cloning the types `Array[T]`.
-
 ## Building
 
 ```bash
@@ -22,7 +16,7 @@ sbt assembly # Creates the full assembly with all dependencies, notably hadoop c
 ## Required configuration
 
 These configuration values need to be passed to Spark to load and configure the plugin:
-- `spark.shuffle.manager`: The shuffle manager. Needs to be set to `org.apache.spark.shuffle.S3ShuffleManager`.
+- `spark.shuffle.manager`: The shuffle manager. Needs to be set to `org.apache.spark.shuffle.sort.S3ShuffleManager`.
 - `spark.shuffle.sort.io.plugin.class`: The sort io plugin class. Needs to be set to 
   `org.apache.spark.shuffle.S3ShuffleDataIO`.
 - `spark.shuffle.s3.rootDir`: Root dir for the shuffle files. Examples:
@@ -30,13 +24,11 @@ These configuration values need to be passed to Spark to load and configure the 
     - `cos://zrlio-tmp.resources/s3-benchmark-shuffle` (Hadoop-Cloud + Stocator)
 
   The plugin will create an additional path based on the start time and the Spark app id.
+- `spark.shuffle.checksum.enabled`: `false` - Disables checksums for Shuffle files. Reason: This is not yet supported.
 
 ### Debug options / optimizations
 
 These are optional configuration values that control how s3-shuffle behaves.
-- `spark.shuffle.s3.forceBypassMergeSort`: Bypass SortShuffle (default: `false`)
-- `spark.shuffle.s3.allowSerializedShuffle`: Allow serialized shuffle (default `true`)
-- `spark.shuffle.s3.sort.cloneRecords`: Clone records before sorting (workaround for terasort, default: `false`)
 - `spark.shuffle.s3.cleanup`: Cleanup the shuffle files (default: `true`)
 - `spark.shuffle.s3.alwaysCreateIndex`: Always create an index file, even if all partitions have empty length (
   default: `false`)
@@ -80,7 +72,7 @@ Add the following lines to your Spark configuration:
     --conf spark.hadoop.fs.s3a.path.style.access=true
     --conf spark.hadoop.fs.s3a.fast.upload=true
     
-    --conf spark.shuffle.manager="org.apache.spark.shuffle.S3ShuffleManager"
+    --conf spark.shuffle.manager="org.apache.spark.shuffle.sort.S3ShuffleManager"
     --conf spark.shuffle.sort.io.plugin.class="org.apache.spark.shuffle.S3ShuffleDataIO"
     --conf spark.hadoop.fs.s3a.impl="org.apache.hadoop.fs.s3a.S3AFileSystem"
     --conf spark.shuffle.s3.rootDir=SHUFFLE_ROOT
@@ -110,7 +102,7 @@ Add the following lines to your Spark configuration:
     --conf spark.hadoop.fs.cos.resources.access.key=COS_ACCESS_KEY
     --conf spark.hadoop.fs.cos.resources.endpoint=COS_ENDPOINT
     --conf spark.hadoop.fs.cos.resources.secret.key=COS_SECRET_KEY
-    --conf spark.shuffle.manager="org.apache.spark.shuffle.S3ShuffleManager"
+    --conf spark.shuffle.manager="org.apache.spark.shuffle.sort.S3ShuffleManager"
     --conf spark.shuffle.sort.io.plugin.class="org.apache.spark.shuffle.S3ShuffleDataIO"
     --conf spark.shuffle.s3.rootDir=SHUFFLE_ROOT
 ```
