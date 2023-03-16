@@ -46,13 +46,13 @@ notifications:
   email: false
 
 deploy:
-   provider: releases
-   file_glob: true
-   file: target/scala-*/*.jar
-   skip_cleanup: true
-   api_key:  api_key:
-    secure: wBVtnS449hVZTHxVRLmC92ILPcj/zChZ9Y90jg2rXc3HkotebfpaXxHdu/RWcFG6S5vX9tN9fvkN7gDQfKM+lZMR+KWZ4CACgj2DwM3/bywSk7uyyeOpgDrABD1WGheiHMYLHVQKZajAjzJK3YTIv8bmSf0DHF5ExHqULo5F1lcLmgPHmr1RDiB29OwAV+N3I6XUe+yb8eO37vxZP0Egtg2+l9MYrXQeeXDsxuitW3JzjBET4g7UtExH9flxy9T9qKdrUkjJIzjafO86Nby3AcEoPy5enbPyvbVMsN87ohmpr41yPMr1JhyMCP2dqblLGGsn+NeL2BblDEFjBtQ6DfyiuuzMHBFlb1Kf35TiOWtj23jD9txx0JHD36+zB4Xuf7nB0HjvR//IOl3S2NG9AUHDpNXRLzqwCDnFzAdkskpVeqVvtmGvZAJ56G2tijUJAvnI73aPPeSVW5Ok0J7fhzgmu/vFNbLIrdqRHo2wD3HN34cGleo4UgWLECDgc+6pWcqo7j3tRYUixmx1q2rOkLo77I1ddmUBXYGSfg3TXLmfyUMLxDe9ktfpfyRYzJ7rWsIhBOEsPq/KDOVZC6OVVHDf+8ozWS9XdYRH4TBmvm/18e2JegqNYlMd03wbx+iGPxuer7eIiOCk6hjUKnE8UoJZLttNgVOqOohyjk8xXvc=
+  provider: releases
+  file_glob: true
+  file: "target/scala-*/*.jar"
+  skip_cleanup: true
+  api_key:
+    secure: "wBVtnS449hVZTHxVRLmC92ILPcj/zChZ9Y90jg2rXc3HkotebfpaXxHdu/RWcFG6S5vX9tN9fvkN7gDQfKM+lZMR+KWZ4CACgj2DwM3/bywSk7uyyeOpgDrABD1WGheiHMYLHVQKZajAjzJK3YTIv8bmSf0DHF5ExHqULo5F1lcLmgPHmr1RDiB29OwAV+N3I6XUe+yb8eO37vxZP0Egtg2+l9MYrXQeeXDsxuitW3JzjBET4g7UtExH9flxy9T9qKdrUkjJIzjafO86Nby3AcEoPy5enbPyvbVMsN87ohmpr41yPMr1JhyMCP2dqblLGGsn+NeL2BblDEFjBtQ6DfyiuuzMHBFlb1Kf35TiOWtj23jD9txx0JHD36+zB4Xuf7nB0HjvR//IOl3S2NG9AUHDpNXRLzqwCDnFzAdkskpVeqVvtmGvZAJ56G2tijUJAvnI73aPPeSVW5Ok0J7fhzgmu/vFNbLIrdqRHo2wD3HN34cGleo4UgWLECDgc+6pWcqo7j3tRYUixmx1q2rOkLo77I1ddmUBXYGSfg3TXLmfyUMLxDe9ktfpfyRYzJ7rWsIhBOEsPq/KDOVZC6OVVHDf+8ozWS9XdYRH4TBmvm/18e2JegqNYlMd03wbx+iGPxuer7eIiOCk6hjUKnE8UoJZLttNgVOqOohyjk8xXvc="
   on:
-    repo: IBM/spark-s3-shuffle
+    repo: "IBM/spark-s3-shuffle"
     tags: true
   skip_cleanup: 'true'
