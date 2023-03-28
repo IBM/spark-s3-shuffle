@@ -28,9 +28,13 @@ import org.apache.spark.serializer.SerializerManager
 import org.apache.spark.shuffle.helper.{S3ShuffleDispatcher, S3ShuffleHelper}
 import org.apache.spark.shuffle.{BaseShuffleHandle, ShuffleReadMetricsReporter, ShuffleReader}
 import org.apache.spark.storage.ShuffleBlockFetcherIterator.FetchBlockInfo
-import org.apache.spark.util.CompletionIterator
+import org.apache.spark.util.{CompletionIterator, ThreadUtils}
 import org.apache.spark.util.collection.ExternalSorter
 import org.apache.spark.{InterruptibleIterator, SparkConf, SparkEnv, TaskContext}
+
+import java.io.BufferedInputStream
+import scala.concurrent.duration.Duration
+import scala.concurrent.{Await, ExecutionContext, Future}
 
 /**
  * This class was adapted from Apache Spark: BlockStoreShuffleReader.
@@ -50,6 +54,7 @@ class S3ShuffleReader[K, C](
 
   private val dispatcher = S3ShuffleDispatcher.get
   private val dep = handle.dependency
+  private val maxBufferSize = conf.get(config.MAX_REMOTE_BLOCK_SIZE_FETCH_TO_MEM)
 
   private val fetchContinousBlocksInBatch: Boolean = {
     val serializerRelocatable = dep.serializer.supportsRelocationOfSerializedObjects
@@ -71,6 +76,17 @@ class S3ShuffleReader[K, C](
     doBatchFetch
   }
 
+  // Source: Cassandra connector for Apache Spark (https://github.com/datastax/spark-cassandra-connector)
+  //         com.datastax.spark.connector.datasource.JoinHelper
+  // License: Apache 2.0
+  // See here for an explanation: http://www.russellspitzer.com/2017/02/27/Concurrency-In-Spark/
+  def slidingPrefetchIterator[T](it: Iterator[Future[T]], batchSize: Int): Iterator[T] = {
+    val (firstElements, lastElement) = it.grouped(batchSize)
+                                         .sliding(2)
+                                         .span(_ => it.hasNext)
+    (firstElements.map(_.head) ++ lastElement.flatten).flatten.map(Await.result(_, Duration.Inf))
+  }
+
   override def read(): Iterator[Product2[K, C]] = {
     val serializerInstance = dep.serializer.newInstance()
     val blocks = computeShuffleBlocks(handle.shuffleId,
@@ -82,14 +98,28 @@ class S3ShuffleReader[K, C](
     val wrappedStreams = new S3ShuffleBlockIterator(blocks)
 
     // Create a key/value iterator for each stream
-    val recordIter = wrappedStreams.filterNot(_._2.maxBytes == 0).flatMap { case (blockId, wrappedStream) =>
+    val recordIterPromise = wrappedStreams.filterNot(_._2.maxBytes == 0).map { case (blockId, wrappedStream) =>
       readMetrics.incRemoteBytesRead(wrappedStream.maxBytes) // increase byte count.
       readMetrics.incRemoteBlocksFetched(1)
       // Note: the asKeyValueIterator below wraps a key/value iterator inside of a
       // NextIterator. The NextIterator makes sure that close() is called on the
       // underlying InputStream when all records have been read.
-      serializerInstance.deserializeStream(serializerManager.wrapStream(blockId, wrappedStream)).asKeyValueIterator
+      Future {
+        val bufferSize = scala.math.min(wrappedStream.maxBytes, maxBufferSize).toInt
+        val stream = new BufferedInputStream(wrappedStream, bufferSize)
+
+        // Fill the buffered input stream by reading and then resetting the stream.
+        stream.mark(bufferSize)
+        stream.read()
+        stream.reset()
+
+        serializerInstance
+          .deserializeStream(serializerManager.wrapStream(blockId, stream))
+          .asKeyValueIterator
+      }(S3ShuffleReader.asyncExecutionContext)
     }
+
+    val recordIter = slidingPrefetchIterator(recordIterPromise, 25).flatten
 
     // Update the context task metrics for each record read.
     val metricIter = CompletionIterator[(Any, Any), Iterator[(Any, Any)]](
@@ -163,4 +193,9 @@ class S3ShuffleReader[K, C](
       }
     }
   }
+}
+
+object S3ShuffleReader {
+  private val asyncThreadPool = ThreadUtils.newDaemonCachedThreadPool("s3-shuffle-reader-async-thread-pool", 100)
+  private implicit val asyncExecutionContext = ExecutionContext.fromExecutorService(asyncThreadPool)
 }
