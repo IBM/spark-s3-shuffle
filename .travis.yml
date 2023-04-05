@@ -27,6 +27,12 @@ jobs:
     env: SPARK_VERSION=3.2.1 SCALA_VERSION=2.13.5
   - os: linux
     scala: 2.12.15
+    env: SPARK_VERSION=3.2.3 SCALA_VERSION=2.12.15
+  - os: linux
+    scala: 2.13.5
+    env: SPARK_VERSION=3.2.3 SCALA_VERSION=2.13.5
+  - os: linux
+    scala: 2.12.15
     env: SPARK_VERSION=3.3.0 SCALA_VERSION=2.12.15
   - os: linux
     scala: 2.13.8
