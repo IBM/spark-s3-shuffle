@@ -32,8 +32,15 @@ These are optional configuration values that control how s3-shuffle behaves.
 - `spark.shuffle.s3.cleanup`: Cleanup the shuffle files (default: `true`)
 - `spark.shuffle.s3.alwaysCreateIndex`: Always create an index file, even if all partitions have empty length (
   default: `false`)
-- `spark.shuffle.s3.useBlockManager`: Use the Spark block manager to compute blocks (default: `true`). Note: Disabling
-  this feature might lead to invalid results for some workloads.
+- `spark.shuffle.s3.useBlockManager`: Use the Spark block manager to compute blocks (default: `true`). 
+  
+  **Note**: Disabling
+  this feature might lead to invalid results. If the underlying data-store does not support strong read-after write
+  consistency for the list operation then this plugin might not see all blocks.
+
+  [AWS S3](https://aws.amazon.com/blogs/aws/amazon-s3-update-strong-read-after-write-consistency/) and
+  [IBM COS](https://cloud.ibm.com/docs/cloud-object-storage?topic=cloud-object-storage-versioning#versioning-consistency)
+  both are strongly consistent and are thus not affected.
 - `spark.shuffle.s3.forceBatchFetch`: Force batch fetch for Shuffle Blocks (default: `false`)
 - `spark.shuffle.s3.supportsUnbuffer`: Streams can be unbuffered instead of closed (default: `true`,
   if Storage-backend is S3A, `false` otherwise).
@@ -106,5 +113,3 @@ Add the following lines to your Spark configuration:
     --conf spark.shuffle.sort.io.plugin.class="org.apache.spark.shuffle.S3ShuffleDataIO"
     --conf spark.shuffle.s3.rootDir=SHUFFLE_ROOT
 ```
-
-## Running the tests in 
