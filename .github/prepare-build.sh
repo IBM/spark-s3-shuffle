@@ -9,7 +9,7 @@ ROOT="$(cd "`dirname $0`/../" && pwd)"
 cd "${ROOT}"
 
 VERSION=$(git describe --tags || echo "vrev-$(git rev-parse --short HEAD)")
-VERSION=${VERSION:1}
+VERSION="${VERSION:1}"
 echo "Version: ${VERSION}"
 
 # Change revision.
