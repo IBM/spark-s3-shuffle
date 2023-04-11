@@ -68,9 +68,8 @@ jobs:
       run: ./.github/publish_maven.sh
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    - name: Upload package
+    - name: Upload release
       if: startsWith(github.ref, 'refs/tags/v')
-      uses: actions/upload-artifact@v3
+      uses: softprops/action-gh-release@v1
       with:
-        name: packages
-        path: target/scala*/*.jar
+        files: target/scala*/*.jar
