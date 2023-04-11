@@ -42,5 +42,5 @@ mvn deploy:deploy-file \
   -Dfile="${FILE}" \
   -Dpom="${POM}" \
   -DgroupId=com.ibm \
-  -DartifactId="spark-s3-shuffle_${SCALA_VERSION}" \
+  -DartifactId="spark-s3-shuffle${SCALA_VERSION}" \
   -Dversion="${VERSION}${SPARK_VERSION}"
