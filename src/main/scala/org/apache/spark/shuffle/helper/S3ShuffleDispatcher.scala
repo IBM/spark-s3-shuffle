@@ -24,9 +24,9 @@ class S3ShuffleDispatcher extends Logging {
   val startTime: String = conf.get("spark.app.startTime")
 
   val cleanupShuffleFiles: Boolean = conf.getBoolean("spark.shuffle.s3.cleanup", defaultValue = true)
-  private val rootDir_ = conf.get("spark.shuffle.s3.rootDir", defaultValue = "sparkS3shuffle")
-  private val isCOS = rootDir_.startsWith("cos://")
-  private val isS3A = rootDir_.startsWith("s3a://")
+  val rootDir = conf.get("spark.shuffle.s3.rootDir", defaultValue = "sparkS3shuffle")
+  private val isCOS = rootDir.startsWith("cos://")
+  private val isS3A = rootDir.startsWith("s3a://")
   val supportsUnbuffer: Boolean = conf.getBoolean("spark.shuffle.s3.supportsUnbuffer", defaultValue = isS3A)
   val alwaysCreateIndex: Boolean = conf.getBoolean("spark.shuffle.s3.alwaysCreateIndex", defaultValue = false)
   val useBlockManager: Boolean = conf.getBoolean("spark.shuffle.s3.useBlockManager", defaultValue = true)
@@ -35,12 +35,12 @@ class S3ShuffleDispatcher extends Logging {
   val forceBypassMergeSort: Boolean = conf.getBoolean("spark.shuffle.s3.forceBypassMergeSort", defaultValue = false)
   val sortShuffleCloneRecords: Boolean = conf.getBoolean("spark.shuffle.s3.sort.cloneRecords", defaultValue = false)
 
-  val rootDir: String = f"${rootDir_}/${startTime}-${appId}/"
+  val appDir = f"${startTime}-${appId}/"
   val fs: FileSystem = FileSystem.get(URI.create(rootDir), {
     SparkHadoopUtil.newConfiguration(conf)
   })
 
-  logInfo(s"- spark.shuffle.s3.rootDir=${rootDir_} (run specific: ${rootDir})")
+  logInfo(s"- spark.shuffle.s3.rootDir=${rootDir} (app dir: ${appDir})")
   logInfo(s"- spark.shuffle.s3.cleanup=${cleanupShuffleFiles}")
   logInfo(s"- spark.shuffle.s3.supportsUnbuffer=${supportsUnbuffer}")
   logInfo(s"- spark.shuffle.s3.alwaysCreateIndex=${alwaysCreateIndex}")
@@ -55,7 +55,18 @@ class S3ShuffleDispatcher extends Logging {
   }
 
   def getPath(blockId: BlockId): Path = {
-    new Path(f"${rootDir}/${blockId.name}")
+    val idx = (blockId match {
+      case ShuffleBlockId(_, mapId, _) =>
+        mapId
+      case ShuffleDataBlockId(_, mapId, _) =>
+        mapId
+      case ShuffleIndexBlockId(_, mapId, _) =>
+        mapId
+      case ShuffleChecksumBlockId(_, mapId, _) =>
+        mapId
+      case _ => 0
+    }) % 10
+    new Path(f"${rootDir}/${idx}${appDir}/${blockId.name}")
   }
 
   /**

@@ -20,10 +20,11 @@ These configuration values need to be passed to Spark to load and configure the 
 - `spark.shuffle.sort.io.plugin.class`: The sort io plugin class. Needs to be set to 
   `org.apache.spark.shuffle.S3ShuffleDataIO`.
 - `spark.shuffle.s3.rootDir`: Root dir for the shuffle files. Examples:
-    - `s3a://zrlio-tmp/s3-benchmark-shuffle` (Hadoop-AWS + AWS-SDK)
-    - `cos://zrlio-tmp.resources/s3-benchmark-shuffle` (Hadoop-Cloud + Stocator)
-
-  The plugin will create an additional path based on the start time and the Spark app id.
+    - `s3a://zrlio-tmp/` (Hadoop-AWS + AWS-SDK)
+    - `cos://zrlio-tmp.resources/` (Hadoop-Cloud + Stocator)
+   
+  Individual blocks are hashed in order to get improved performance when accessing them on the remote filesystem.
+  The generated paths look like this: `${rootDir}/${mapId % 10}/${appDir}/ShuffleBlock{.data / .index}`
 - `spark.shuffle.checksum.enabled`: `false` - Disables checksums for Shuffle files. Reason: This is not yet supported.
 
 ### Debug options / optimizations
