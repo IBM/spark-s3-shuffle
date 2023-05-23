@@ -11,6 +11,9 @@ import java.io.{BufferedInputStream, BufferedOutputStream}
 import java.nio.ByteBuffer
 import java.util
 import java.util.regex.Pattern
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration.Duration
+import scala.concurrent.{Await, Future}
 
 object S3ShuffleHelper extends Logging {
   private lazy val serializer = SparkEnv.get.serializer
@@ -75,12 +78,14 @@ object S3ShuffleHelper extends Logging {
         regex.matcher(path.getName).matches()
       }
     }
-    Range(0, 10).flatMap(idx => {
-      val path = new Path(f"${dispatcher.rootDir}/${idx}${dispatcher.appDir}")
-      dispatcher.fs.listStatus(path, shuffleIndexFilter).map(v => {
-        BlockId.apply(v.getPath.getName).asInstanceOf[ShuffleIndexBlockId]
-      })
-    }).toArray
+    Range(0, 10).map(idx => {
+      Future {
+        val path = new Path(f"${dispatcher.rootDir}/${idx}${dispatcher.appDir}")
+        dispatcher.fs.listStatus(path, shuffleIndexFilter).map(v => {
+          BlockId.apply(v.getPath.getName).asInstanceOf[ShuffleIndexBlockId]
+        })
+      }
+    }).flatMap(Await.result(_, Duration.Inf)).toArray
   }
 
   /**

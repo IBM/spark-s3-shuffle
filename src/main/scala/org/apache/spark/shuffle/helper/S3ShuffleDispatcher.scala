@@ -13,6 +13,9 @@ import org.apache.spark.storage._
 import org.apache.spark.{SparkConf, SparkEnv}
 
 import java.net.URI
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration.Duration
+import scala.concurrent.{Await, Future}
 
 /**
  * Helper class that configures Hadoop FS.
@@ -35,7 +38,7 @@ class S3ShuffleDispatcher extends Logging {
   val forceBypassMergeSort: Boolean = conf.getBoolean("spark.shuffle.s3.forceBypassMergeSort", defaultValue = false)
   val sortShuffleCloneRecords: Boolean = conf.getBoolean("spark.shuffle.s3.sort.cloneRecords", defaultValue = false)
 
-  val appDir = f"${startTime}-${appId}/"
+  val appDir = f"/${startTime}-${appId}/"
   val fs: FileSystem = FileSystem.get(URI.create(rootDir), {
     SparkHadoopUtil.newConfiguration(conf)
   })
@@ -51,7 +54,12 @@ class S3ShuffleDispatcher extends Logging {
   logInfo(s"- spark.shuffle.s3.sort.cloneRecords=${sortShuffleCloneRecords}")
 
   def removeRoot(): Boolean = {
-    fs.delete(new Path(rootDir), true)
+    Range(0, 10).map(idx => {
+      Future {
+        fs.delete(new Path(f"${rootDir}/${idx}${appDir}"), true)
+      }
+    }).map(Await.result(_, Duration.Inf))
+    true
   }
 
   def getPath(blockId: BlockId): Path = {

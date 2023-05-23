@@ -35,6 +35,9 @@ import org.apache.spark.util.collection.OpenHashSet
 import java.util.concurrent.ConcurrentHashMap
 import scala.collection.JavaConverters._
 import scala.collection.mutable
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration.Duration
+import scala.concurrent.{Await, Future}
 
 
 /**
@@ -153,11 +156,14 @@ private[spark] class S3ShuffleManager(conf: SparkConf) extends ShuffleManager wi
         }
       }
 
-      Range(0, 10).foreach(idx => {
+      Range(0, 10).flatMap(idx => {
         val path = new Path(f"${dispatcher.rootDir}/${idx}${dispatcher.appDir}")
-        dispatcher.fs.listStatus(path, shuffleIdFilter).foreach(f => {
-          dispatcher.fs.delete(f.getPath, false)        })
-      })
+        dispatcher.fs.listStatus(path, shuffleIdFilter).map(f => {
+          Future {
+            dispatcher.fs.delete(f.getPath, false)
+          }
+        })
+      }).foreach(Await.result(_, Duration.Inf))
     }
     true
   }
