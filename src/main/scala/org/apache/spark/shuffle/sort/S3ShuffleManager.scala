@@ -27,6 +27,7 @@ import org.apache.spark._
 import org.apache.spark.internal.Logging
 import org.apache.spark.shuffle._
 import org.apache.spark.shuffle.api.ShuffleExecutorComponents
+import org.apache.spark.shuffle.helper.S3ShuffleHelper.dispatcher
 import org.apache.spark.shuffle.helper.{S3ShuffleDispatcher, S3ShuffleHelper}
 import org.apache.spark.storage.S3ShuffleReader
 import org.apache.spark.util.collection.OpenHashSet
@@ -151,8 +152,12 @@ private[spark] class S3ShuffleManager(conf: SparkConf) extends ShuffleManager wi
           name.startsWith(prefix)
         }
       }
-      val files = dispatcher.fs.listStatus(new Path(dispatcher.rootDir), shuffleIdFilter)
-      files.foreach(f => dispatcher.fs.delete(f.getPath, false))
+
+      Range(0, 10).foreach(idx => {
+        val path = new Path(f"${dispatcher.rootDir}/${idx}${dispatcher.appDir}")
+        dispatcher.fs.listStatus(path, shuffleIdFilter).foreach(f => {
+          dispatcher.fs.delete(f.getPath, false)        })
+      })
     }
     true
   }
