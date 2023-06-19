@@ -1,9 +1,14 @@
 # Shuffle Plugin for Apache Spark and S3 compatible storage services
 
-This plugin allows storing [Apache Spark](https://spark.apache.org/) shuffle data on S3 compatible object storage (e.g. S3A, COS).
+This plugin allows storing [Apache Spark](https://spark.apache.org/) shuffle data on S3 compatible object storage (e.g.
+S3A, COS).
 It uses the Java Hadoop-Filesystem abstraction for interoperability for COS, S3A and even local file systems.
 
-*Note*: This plugin is based on [Apache Spark Pull Request #34864](https://github.com/apache/spark/pull/34864/files). It has
+Builds for Spark 3.1.x are tagged with `vX.X-spark3.1` and tracked on
+branch [spark-3.1](https://github.com/IBM/spark-s3-shuffle/tree/spark-3.1).
+
+*Note*: This plugin is based on [Apache Spark Pull Request #34864](https://github.com/apache/spark/pull/34864/files). It
+has
 since been significantly rewritten.
 
 ## Building
@@ -16,13 +21,14 @@ sbt assembly # Creates the full assembly with all dependencies, notably hadoop c
 ## Required configuration
 
 These configuration values need to be passed to Spark to load and configure the plugin:
+
 - `spark.shuffle.manager`: The shuffle manager. Needs to be set to `org.apache.spark.shuffle.sort.S3ShuffleManager`.
-- `spark.shuffle.sort.io.plugin.class`: The sort io plugin class. Needs to be set to 
+- `spark.shuffle.sort.io.plugin.class`: The sort io plugin class. Needs to be set to
   `org.apache.spark.shuffle.S3ShuffleDataIO`.
 - `spark.shuffle.s3.rootDir`: Root dir for the shuffle files. Examples:
     - `s3a://zrlio-tmp/` (Hadoop-AWS + AWS-SDK)
     - `cos://zrlio-tmp.resources/` (Hadoop-Cloud + Stocator)
-   
+
   Individual blocks are hashed in order to get improved performance when accessing them on the remote filesystem.
   The generated paths look like this: `${rootDir}/${mapId % 10}/${appDir}/ShuffleBlock{.data / .index}`
 - `spark.shuffle.checksum.enabled`: `false` - Disables checksums for Shuffle files. Reason: This is not yet supported.
@@ -30,11 +36,12 @@ These configuration values need to be passed to Spark to load and configure the 
 ### Debug options / optimizations
 
 These are optional configuration values that control how s3-shuffle behaves.
+
 - `spark.shuffle.s3.cleanup`: Cleanup the shuffle files (default: `true`)
 - `spark.shuffle.s3.alwaysCreateIndex`: Always create an index file, even if all partitions have empty length (
   default: `false`)
-- `spark.shuffle.s3.useBlockManager`: Use the Spark block manager to compute blocks (default: `true`). 
-  
+- `spark.shuffle.s3.useBlockManager`: Use the Spark block manager to compute blocks (default: `true`).
+
   **Note**: Disabling
   this feature might lead to invalid results. If the underlying data-store does not support strong read-after write
   consistency for the list operation then this plugin might not see all blocks.
@@ -49,6 +56,7 @@ These are optional configuration values that control how s3-shuffle behaves.
 ## Testing
 
 The tests require the following environment variables to be set:
+
 - `AWS_ACCESS_KEY_ID`: Access key to use for the S3 Shuffle service.
 - `AWS_SECRET_ACCESS_KEY`: Secret key to use for the S3 Shuffle service.
 - `S3_ENDPOINT_URL`: Endpoint URL of the S3 Service (e.g. `http://10.40.0.29:9000` or
