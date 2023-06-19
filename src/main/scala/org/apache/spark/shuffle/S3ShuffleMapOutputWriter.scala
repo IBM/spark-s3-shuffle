@@ -89,7 +89,7 @@ class S3ShuffleMapOutputWriter(
    * @param checksums Ignored.
    * @return
    */
-  override def commitAllPartitions(checksums: Array[Long]): MapOutputCommitMessage = {
+  override def commitAllPartitions(): MapOutputCommitMessage = {
     if (bufferedStream != null) {
       bufferedStream.flush()
     }

@@ -126,7 +126,7 @@ private[spark] class S3ShuffleManager(conf: SparkConf) extends ShuffleManager wi
           shuffleExecutorComponents
           )
       case other: BaseShuffleHandle[K@unchecked, V@unchecked, _] =>
-        new SortShuffleWriter(other, mapId, context, shuffleExecutorComponents)
+        new SortShuffleWriter(shuffleBlockResolver, other, mapId, context, shuffleExecutorComponents)
     }
   }
 

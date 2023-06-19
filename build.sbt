@@ -8,12 +8,11 @@ organization := "com.ibm"
 name := "spark-s3-shuffle"
 version := "SNAPSHOT"
 
-val sparkVersion = sys.env.getOrElse("SPARK_VERSION", "3.3.1")
+val sparkVersion = sys.env.getOrElse("SPARK_VERSION", "3.1.2")
 
 libraryDependencies ++= Seq(
   "org.apache.spark" %% "spark-core" % sparkVersion % "provided",
   "org.apache.spark" %% "spark-sql" % sparkVersion % "provided",
-  "org.apache.spark" %% "spark-hadoop-cloud" % sparkVersion % "compile",
 
   // Note: The tests don't work with Scala 2.13
   "junit" % "junit" % "4.13.2" % Test, // TRAVIS_SCALA_WORKAROUND_REMOVE_LINE

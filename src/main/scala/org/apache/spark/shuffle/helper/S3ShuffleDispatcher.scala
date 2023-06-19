@@ -70,8 +70,6 @@ class S3ShuffleDispatcher extends Logging {
         mapId
       case ShuffleIndexBlockId(_, mapId, _) =>
         mapId
-      case ShuffleChecksumBlockId(_, mapId, _) =>
-        mapId
       case _ => 0
     }) % 10
     new Path(f"${rootDir}/${idx}${appDir}/${blockId.name}")
@@ -104,15 +102,8 @@ class S3ShuffleDispatcher extends Logging {
       case RDDBlockId(_, _) => false
       case ShuffleBlockId(shuffleId, _, _) => shuffleId == shuffleIndex
       case ShuffleBlockBatchId(shuffleId, _, _, _) => shuffleId == shuffleIndex
-      case ShuffleBlockChunkId(shuffleId, _, _, _) => shuffleId == shuffleIndex
       case ShuffleDataBlockId(shuffleId, _, _) => shuffleId == shuffleIndex
       case ShuffleIndexBlockId(shuffleId, _, _) => shuffleId == shuffleIndex
-      case ShuffleChecksumBlockId(shuffleId, _, _) => shuffleId == shuffleIndex
-      case ShufflePushBlockId(shuffleId, _, _, _) => shuffleId == shuffleIndex
-      case ShuffleMergedBlockId(shuffleId, _, _) => shuffleId == shuffleIndex
-      case ShuffleMergedDataBlockId(_, shuffleId, _, _) => shuffleId == shuffleIndex
-      case ShuffleMergedIndexBlockId(_, shuffleId, _, _) => shuffleId == shuffleIndex
-      case ShuffleMergedMetaBlockId(_, shuffleId, _, _) => shuffleId == shuffleIndex
       case BroadcastBlockId(_, _) => false
       case TaskResultBlockId(_) => false
       case StreamBlockId(_, _) => false

@@ -18,8 +18,7 @@ class S3SingleSpillShuffleMapOutputWriter(shuffleId: Int, mapId: Long) extends S
 
   override def transferMapSpillFile(
                                      mapSpillFile: File,
-                                     partitionLengths: Array[Long],
-                                     checksums: Array[Long]
+                                     partitionLengths: Array[Long]
                                    ): Unit = {
     val in = new FileInputStream(mapSpillFile)
     val out = dispatcher.createBlock(ShuffleDataBlockId(shuffleId, mapId, IndexShuffleBlockResolver.NOOP_REDUCE_ID))

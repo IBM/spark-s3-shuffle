@@ -1,4 +1,4 @@
-# Shuffle Plugin for Apache Spark and S3 compatible storage services
+# Shuffle Plugin for Apache Spark 3.1.x and S3 compatible storage services
 
 This plugin allows storing [Apache Spark](https://spark.apache.org/) shuffle data on S3 compatible object storage (e.g. S3A, COS).
 It uses the Java Hadoop-Filesystem abstraction for interoperability for COS, S3A and even local file systems.

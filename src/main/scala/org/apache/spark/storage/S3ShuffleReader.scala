@@ -154,7 +154,15 @@ class S3ShuffleReader[K, C](
         // Create an ExternalSorter to sort the data.
         val sorter =
           new ExternalSorter[K, C, C](context, ordering = Some(keyOrd), serializer = dep.serializer)
-        sorter.insertAllAndUpdateMetrics(aggregatedIter)
+        sorter.insertAll(aggregatedIter)
+        context.taskMetrics().incMemoryBytesSpilled(sorter.memoryBytesSpilled)
+        context.taskMetrics().incDiskBytesSpilled(sorter.diskBytesSpilled)
+        context.taskMetrics().incPeakExecutionMemory(sorter.peakMemoryUsedBytes)
+        // Use completion callback to stop sorter if task was finished/cancelled.
+        context.addTaskCompletionListener[Unit](_ => {
+          sorter.stop()
+        })
+        CompletionIterator[Product2[K, C], Iterator[Product2[K, C]]](sorter.iterator, sorter.stop())
       case None =>
         aggregatedIter
     }
