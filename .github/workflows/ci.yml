@@ -17,6 +17,10 @@ jobs:
       fail-fast: true
       matrix:
         include:
+          - spark: 3.1.0
+            scala: 2.12.10
+          - spark: 3.1.1
+            scala: 2.12.10
           - spark: 3.1.2
             scala: 2.12.10
           - spark: 3.1.3
