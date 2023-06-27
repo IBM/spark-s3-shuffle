@@ -119,7 +119,7 @@ class S3ShuffleReader[K, C](
       }(S3ShuffleReader.asyncExecutionContext)
     }
 
-    val recordIter = slidingPrefetchIterator(recordIterPromise, 25).flatten
+    val recordIter = slidingPrefetchIterator(recordIterPromise, dispatcher.prefetchBatchSize).flatten
 
     // Update the context task metrics for each record read.
     val metricIter = CompletionIterator[(Any, Any), Iterator[(Any, Any)]](
@@ -204,6 +204,6 @@ class S3ShuffleReader[K, C](
 }
 
 object S3ShuffleReader {
-  private val asyncThreadPool = ThreadUtils.newDaemonCachedThreadPool("s3-shuffle-reader-async-thread-pool", 100)
-  private implicit val asyncExecutionContext = ExecutionContext.fromExecutorService(asyncThreadPool)
+  private lazy val asyncThreadPool = ThreadUtils.newDaemonCachedThreadPool("s3-shuffle-reader-async-thread-pool", S3ShuffleDispatcher.get.prefetchThreadPoolSize)
+  private lazy implicit val asyncExecutionContext = ExecutionContext.fromExecutorService(asyncThreadPool)
 }
