@@ -52,6 +52,8 @@ These are optional configuration values that control how s3-shuffle behaves.
 - `spark.shuffle.s3.forceBatchFetch`: Force batch fetch for Shuffle Blocks (default: `false`)
 - `spark.shuffle.s3.supportsUnbuffer`: Streams can be unbuffered instead of closed (default: `true`,
   if Storage-backend is S3A, `false` otherwise).
+- `spark.shuffle.s3.prefetchBatchSize`: Prefetch batch size (default: `10`).
+- `spark.shuffle.s3.prefetchThreadPoolSize`: Prefetch thread pool size (default: `40`).
 
 ## Testing
 
