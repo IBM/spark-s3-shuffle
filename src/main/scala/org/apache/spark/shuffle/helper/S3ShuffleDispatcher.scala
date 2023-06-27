@@ -34,6 +34,8 @@ class S3ShuffleDispatcher extends Logging {
   val alwaysCreateIndex: Boolean = conf.getBoolean("spark.shuffle.s3.alwaysCreateIndex", defaultValue = false)
   val useBlockManager: Boolean = conf.getBoolean("spark.shuffle.s3.useBlockManager", defaultValue = true)
   val forceBatchFetch: Boolean = conf.getBoolean("spark.shuffle.s3.forceBatchFetch", defaultValue = false)
+  val prefetchBatchSize: Int = conf.getInt("spark.shuffle.s3.prefetchBatchSize", defaultValue = 10)
+  val prefetchThreadPoolSize: Int = conf.getInt("spark.shuffle.s3.prefetchThreadPoolSize", defaultValue = 20)
 
   val appDir = f"/${startTime}-${appId}/"
   val fs: FileSystem = FileSystem.get(URI.create(rootDir), {
@@ -46,6 +48,8 @@ class S3ShuffleDispatcher extends Logging {
   logInfo(s"- spark.shuffle.s3.alwaysCreateIndex=${alwaysCreateIndex}")
   logInfo(s"- spark.shuffle.s3.useBlockManager=${useBlockManager}")
   logInfo(s"- spark.shuffle.s3.forceBatchFetch=${forceBatchFetch}")
+  logInfo(s"- spark.shuffle.s3.prefetchBlockSize=${prefetchBatchSize}")
+  logInfo(s"- spark.shuffle.s3.prefetchThreadPoolSize=${prefetchThreadPoolSize}")
 
   def removeRoot(): Boolean = {
     Range(0, 10).map(idx => {
