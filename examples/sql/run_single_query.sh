@@ -13,20 +13,11 @@ ROOT="$(pwd)"
 
 QUERY=$1
 SIZE=${SIZE:-1000}
-TIMESTAMP=$(date -u "+%FT%H%M%SZ")
-PROCESS_TAG=${PROCESS_TAG:-"sql"}
-PROCESS_TAG="${PROCESS_TAG}-${SIZE}-${TIMESTAMP}"
 
 # Shuffle on S3
 export USE_S3_SHUFFLE=${USE_S3_SHUFFLE:-1}
 
-
-
-if (( "${USE_S3_SHUFFLE}" == 1 )); then
-    PROCESS_TAG="${PROCESS_TAG}-s3shuffle"
-fi
-
-export PROCESS_TAG=${PROCESS_TAG}
+export PROCESS_TAG=${PROCESS_TAG:-"sql-${QUERY}-${SIZE}"}
 
 INPUT_DATA_PREFIX=s3a://${TPCDS_BUCKET}
 OUTPUT_DATA_PREFIX=s3a://${S3A_OUTPUT_BUCKET}/output/sql-benchmarks/
