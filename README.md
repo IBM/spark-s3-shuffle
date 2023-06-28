@@ -45,8 +45,8 @@ These are optional configuration values that control how s3-shuffle behaves.
 - `spark.shuffle.s3.forceBatchFetch`: Force batch fetch for Shuffle Blocks (default: `false`)
 - `spark.shuffle.s3.supportsUnbuffer`: Streams can be unbuffered instead of closed (default: `true`,
   if Storage-backend is S3A, `false` otherwise).
-- `spark.shuffle.s3.prefetchBatchSize`: Prefetch batch size (default: `10`).
-- `spark.shuffle.s3.prefetchThreadPoolSize`: Prefetch thread pool size (default: `40`).
+- `spark.shuffle.s3.prefetchBatchSize`: Prefetch batch size (default: `25`).
+- `spark.shuffle.s3.prefetchThreadPoolSize`: Prefetch thread pool size (default: `100`).
 
 ## Testing
 
@@ -56,14 +56,14 @@ The tests require the following environment variables to be set:
 - `S3_ENDPOINT_URL`: Endpoint URL of the S3 Service (e.g. `http://10.40.0.29:9000` or
   `https://s3.direct.us-south.cloud-object-storage.appdomain.cloud`).
 - `S3_ENDPOINT_USE_SSL`: Whether the endpoint supports SSL or not.
-- `S3_SHUFFLE_ROOT`: The shuffle root (e.g `s3a://zrlio-tmp/S3ShuffleManagerTests`)
+- `S3_SHUFFLE_ROOT`: The shuffle root (e.g `s3a://zrlio-tmp/`)
 
 ## Usage
 
 Copy one of the following files to your spark path:
 
-- `spark-s3-shuffle_2.12-1.0-SNAPSHOT-jar-with-dependencies.jar` (created by `sbt assembly`)
-- `spark-s3-shuffle_2.12-1.0-SNAPSHOT.jar` (created by `sbt package`)
+- `spark-s3-shuffle_2.12-SPARK_VERSION_SNAPSHOT-jar-with-dependencies.jar` (created by `sbt assembly`)
+- `spark-s3-shuffle_2.12-SPARK_VERSION_SNAPSHOT.jar` (created by `sbt package`)
 
 ### With S3 Plugin
 
