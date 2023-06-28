@@ -12,6 +12,7 @@ cd "${SCRIPT_DIR}"
 
 ROOT="$(pwd)"
 TIMESTAMP=$(date -u "+%FT%H%M%SZ")
+PROCESS_TAG=${PROCESS_TAG}-${TIMESTAMP}
 
 IMAGE="${DOCKER_REGISTRY}/${DOCKER_IMAGE_PREFIX}spark-sql:${SPARK_VERSION}"
 
@@ -26,6 +27,10 @@ INSTANCES=${INSTANCES:-4}
 EXTRA_CLASSPATHS='/opt/spark/jars/*'
 EXECUTOR_JAVA_OPTIONS="-Dsun.nio.PageAlignDirectMemory=true"
 DRIVER_JAVA_OPTIONS="-Dsun.nio.PageAlignDirectMemory=true"
+
+if (( "${USE_S3_SHUFFLE}" == 1 )); then
+    PROCESS_TAG="${PROCESS_TAG}-s3shuffle"
+fi
 
 export SPARK_EXECUTOR_CORES=$EXECUTOR_CPU
 export SPARK_DRIVER_MEMORY=$DRIVER_MEM
