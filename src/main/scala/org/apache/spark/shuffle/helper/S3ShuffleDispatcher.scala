@@ -30,7 +30,6 @@ class S3ShuffleDispatcher extends Logging {
   val rootDir = conf.get("spark.shuffle.s3.rootDir", defaultValue = "sparkS3shuffle")
   private val isCOS = rootDir.startsWith("cos://")
   private val isS3A = rootDir.startsWith("s3a://")
-  val supportsUnbuffer: Boolean = conf.getBoolean("spark.shuffle.s3.supportsUnbuffer", defaultValue = isS3A)
   val alwaysCreateIndex: Boolean = conf.getBoolean("spark.shuffle.s3.alwaysCreateIndex", defaultValue = false)
   val useBlockManager: Boolean = conf.getBoolean("spark.shuffle.s3.useBlockManager", defaultValue = true)
   val forceBatchFetch: Boolean = conf.getBoolean("spark.shuffle.s3.forceBatchFetch", defaultValue = false)
@@ -44,7 +43,6 @@ class S3ShuffleDispatcher extends Logging {
 
   logInfo(s"- spark.shuffle.s3.rootDir=${rootDir} (app dir: ${appDir})")
   logInfo(s"- spark.shuffle.s3.cleanup=${cleanupShuffleFiles}")
-  logInfo(s"- spark.shuffle.s3.supportsUnbuffer=${supportsUnbuffer}")
   logInfo(s"- spark.shuffle.s3.alwaysCreateIndex=${alwaysCreateIndex}")
   logInfo(s"- spark.shuffle.s3.useBlockManager=${useBlockManager}")
   logInfo(s"- spark.shuffle.s3.forceBatchFetch=${forceBatchFetch}")
@@ -84,16 +82,6 @@ class S3ShuffleDispatcher extends Logging {
   }
 
   private val cachedInputStreams = new ConcurrentObjectMap[BlockId, FSDataInputStream]()
-
-  /**
-   * Reuse an already opened input stream. Assumes that the data stream supports unbuffering.
-   *
-   * @param blockId
-   * @return
-   */
-  def openCachedBlock(blockId: BlockId): FSDataInputStream = {
-    cachedInputStreams.getOrElsePut(blockId, openBlock)
-  }
 
   def closeCachedBlocks(shuffleIndex: Int): Unit = {
     val filter = (blockId: BlockId) => blockId match {
