@@ -5,6 +5,7 @@
 
 # Folders
 .idea
+.metals
 target
 
 *.class
