@@ -25,10 +25,7 @@ class S3ShuffleBlockStream(
   private lazy val blockId = ShuffleDataBlockId(shuffleId, mapId, NOOP_REDUCE_ID)
   private lazy val stream = {
     try {
-      if (dispatcher.supportsUnbuffer)
-        dispatcher.openCachedBlock(blockId)
-      else
-        dispatcher.openBlock(blockId)
+      dispatcher.openBlock(blockId)
     } catch {
       case throwable: Throwable =>
         logError(f"Unable to open block ${blockId.name}")
@@ -50,13 +47,8 @@ class S3ShuffleBlockStream(
       return
     }
     this.synchronized {
-      if (dispatcher.supportsUnbuffer) {
-        stream.unbuffer()
-        streamClosed = true
-      } else {
-        stream.close()
-        streamClosed = true
-      }
+      stream.close()
+      streamClosed = true
     }
     super.close()
   }
