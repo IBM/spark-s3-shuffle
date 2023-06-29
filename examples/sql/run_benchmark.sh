@@ -3,7 +3,7 @@
 # Copyright 2023- IBM Inc. All rights reserved
 # SPDX-License-Identifier: Apache-2.0
 #
-set -euo pipefail
+set -exuo pipefail
 
 # Make sure you adapt and source ../config.sh first.
 
@@ -52,11 +52,11 @@ SPARK_S3_SHUFFLE_CONFIG=(
     --conf spark.hadoop.fs.s3a.access.key=${S3A_ACCESS_KEY}
     --conf spark.hadoop.fs.s3a.secret.key=${S3A_SECRET_KEY}
     --conf spark.hadoop.fs.s3a.endpoint=${S3A_ENDPOINT}
-    --conf spark.shuffle.s3.useBlockManager=${USE_BLOCK_MANAGER:-false}
     --conf spark.shuffle.manager="org.apache.spark.shuffle.sort.S3ShuffleManager"
     --conf spark.shuffle.sort.io.plugin.class=org.apache.spark.shuffle.S3ShuffleDataIO
     --conf spark.shuffle.checksum.enabled=false
     --conf spark.shuffle.s3.rootDir=${SHUFFLE_DESTINATION}
+    --conf spark.kubernetes.executor.podTemplateFile=${SCRIPT_DIR}/../templates/executor_nfs.yml
 )
 
 if (( "$USE_S3_SHUFFLE" == 0 )); then
@@ -65,6 +65,17 @@ if (( "$USE_S3_SHUFFLE" == 0 )); then
     )
 fi
 
+USE_NFS_SHUFFLE=${USE_NFS_SHUFFLE:-0}
+if (( "$USE_NFS_SHUFFLE" == 1 )); then
+    SPARK_S3_SHUFFLE_CONFIG=(
+        --conf spark.shuffle.manager="org.apache.spark.shuffle.sort.S3ShuffleManager"
+        --conf spark.shuffle.sort.io.plugin.class=org.apache.spark.shuffle.S3ShuffleDataIO
+        --conf spark.shuffle.checksum.enabled=false
+        --conf spark.shuffle.s3.rootDir=local:///nfs/
+        --conf spark.kubernetes.executor.podTemplateFile=${SCRIPT_DIR}/../templates/executor_nfs.yml
+        --conf spark.kubernetes.driver.podTemplateFile=${SCRIPT_DIR}/../templates/driver_nfs.yml
+    )
+fi
 
 ${SPARK_HOME}/bin/spark-submit \
     --master k8s://$KUBERNETES_SERVER \
