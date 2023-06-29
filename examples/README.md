@@ -1,6 +1,6 @@
 # Readme
 
-This folder contains a set of examples for the HDFS connector.
+This folder contains a set of examples for the spark-s3-shuffle plugin.
 
 ## Prequisites
 
