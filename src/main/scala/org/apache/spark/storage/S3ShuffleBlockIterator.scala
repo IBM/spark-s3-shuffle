@@ -8,7 +8,7 @@ package org.apache.spark.storage
 import org.apache.spark.shuffle.helper.{S3ShuffleDispatcher, S3ShuffleHelper}
 
 class S3ShuffleBlockIterator(
-                              shuffleBlocks: Iterator[BlockId]
+                              shuffleBlocks: Iterator[BlockId],
                             ) extends Iterator[(BlockId, S3ShuffleBlockStream)] {
 
   private val dispatcher = S3ShuffleDispatcher.get

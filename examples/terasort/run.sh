@@ -25,6 +25,7 @@ SIZE=${SIZE:-1g}
 
 # Shuffle on S3
 USE_S3_SHUFFLE=${USE_S3_SHUFFLE:-1}
+CHECKSUM_ENABLED=${CHECKSUM_ENABLED:-"true"}
 
 EXTRA_CLASSPATHS='/opt/spark/jars/*'
 EXECUTOR_JAVA_OPTIONS="-Dsun.nio.PageAlignDirectMemory=true"
@@ -54,7 +55,7 @@ SPARK_S3_SHUFFLE_CONFIG=(
     --conf spark.hadoop.fs.s3a.endpoint=${S3A_ENDPOINT}
     --conf spark.shuffle.manager="org.apache.spark.shuffle.sort.S3ShuffleManager"
     --conf spark.shuffle.sort.io.plugin.class=org.apache.spark.shuffle.S3ShuffleDataIO
-    --conf spark.shuffle.checksum.enabled=false
+    --conf spark.shuffle.checksum.enabled=${CHECKSUM_ENABLED}
     --conf spark.shuffle.s3.rootDir=${SHUFFLE_DESTINATION}
 )
 
@@ -71,7 +72,7 @@ if (( "$USE_NFS_SHUFFLE" == 1 )); then
     SPARK_S3_SHUFFLE_CONFIG=(
         --conf spark.shuffle.manager="org.apache.spark.shuffle.sort.S3ShuffleManager"
         --conf spark.shuffle.sort.io.plugin.class=org.apache.spark.shuffle.S3ShuffleDataIO
-        --conf spark.shuffle.checksum.enabled=false
+        --conf spark.shuffle.checksum.enabled=${CHECKSUM_ENABLED}
         --conf spark.shuffle.s3.rootDir=local:///nfs/
         --conf spark.kubernetes.executor.podTemplateFile=${SCRIPT_DIR}/../templates/executor_nfs.yml
         --conf spark.kubernetes.driver.podTemplateFile=${SCRIPT_DIR}/../templates/driver_nfs.yml

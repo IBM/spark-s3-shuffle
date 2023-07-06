@@ -106,9 +106,12 @@ class S3ShuffleMapOutputWriter(
       bufferedStream.close()
     }
 
-    // Write index
+    // Write index and checksum.
     if (partitionLengths.sum > 0 || S3ShuffleDispatcher.get.alwaysCreateIndex) {
       S3ShuffleHelper.writePartitionLengths(shuffleId, mapId, partitionLengths)
+      if (dispatcher.checksumEnabled) {
+        S3ShuffleHelper.writeChecksum(shuffleId, mapId, checksums)
+      }
     }
     MapOutputCommitMessage.of(partitionLengths)
   }

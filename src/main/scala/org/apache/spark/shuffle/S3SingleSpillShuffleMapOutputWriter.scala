@@ -25,6 +25,10 @@ class S3SingleSpillShuffleMapOutputWriter(shuffleId: Int, mapId: Long) extends S
     val out = dispatcher.createBlock(ShuffleDataBlockId(shuffleId, mapId, IndexShuffleBlockResolver.NOOP_REDUCE_ID))
     // Note: HDFS does not exposed a nio-buffered write interface.
     Utils.copyStream(in, out, closeStreams = true)
+
+    if (dispatcher.checksumEnabled) {
+      S3ShuffleHelper.writeChecksum(shuffleId, mapId, checksums)
+    }
     S3ShuffleHelper.writePartitionLengths(shuffleId, mapId, partitionLengths)
   }
 }

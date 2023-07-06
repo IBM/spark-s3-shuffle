@@ -5,20 +5,22 @@ import org.apache.spark.SparkEnv
 import org.apache.spark.internal.Logging
 import org.apache.spark.shuffle.ConcurrentObjectMap
 import org.apache.spark.shuffle.IndexShuffleBlockResolver.NOOP_REDUCE_ID
-import org.apache.spark.storage.{BlockId, ShuffleIndexBlockId}
+import org.apache.spark.storage.{BlockId, ShuffleChecksumBlockId, ShuffleIndexBlockId}
 
 import java.io.{BufferedInputStream, BufferedOutputStream}
 import java.nio.ByteBuffer
 import java.util
+import java.util.zip.{Adler32, CRC32, Checksum}
 import java.util.regex.Pattern
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
-import scala.concurrent.{Await, Future}
+import scala.concurrent.{Await, Future, blocking}
 
 object S3ShuffleHelper extends Logging {
   private lazy val serializer = SparkEnv.get.serializer
   private lazy val dispatcher = S3ShuffleDispatcher.get
 
+  private val cachedChecksums = new ConcurrentObjectMap[ShuffleChecksumBlockId, Array[Long]]()
   private val cachedArrayLengths = new ConcurrentObjectMap[ShuffleIndexBlockId, Array[Long]]()
   private val cachedIndexBlocks = new ConcurrentObjectMap[Int, Array[ShuffleIndexBlockId]]()
 
@@ -42,18 +44,16 @@ object S3ShuffleHelper extends Logging {
    * @param partitionLengths
    */
   def writePartitionLengths(shuffleId: Int, mapId: Long, partitionLengths: Array[Long]): Unit = {
-    writePartitionLengths(ShuffleIndexBlockId(shuffleId, mapId, NOOP_REDUCE_ID), partitionLengths)
+    writeArrayAsBlock(ShuffleIndexBlockId(shuffleId, mapId, NOOP_REDUCE_ID), partitionLengths)
   }
 
-  /**
-   * Write partitionLengths for blockId.
-   *
-   * @param blockId
-   * @param partitionLengths
-   */
-  def writePartitionLengths(blockId: ShuffleIndexBlockId, partitionLengths: Array[Long]): Unit = {
+  def writeChecksum(shuffleId: Int, mapId: Long, checksums: Array[Long]): Unit = {
+    writeArrayAsBlock(ShuffleChecksumBlockId(shuffleId = shuffleId, mapId = mapId, reduceId = 0), checksums)
+  }
+
+  def writeArrayAsBlock(blockId: BlockId, array: Array[Long]): Unit = {
     val serializerInstance = serializer.newInstance()
-    val buffer = serializerInstance.serialize[Array[Long]](partitionLengths)
+    val buffer = serializerInstance.serialize[Array[Long]](array)
     val file = new BufferedOutputStream(dispatcher.createBlock(blockId))
     file.write(buffer.array(), buffer.arrayOffset(), buffer.limit())
     file.flush()
@@ -106,10 +106,33 @@ object S3ShuffleHelper extends Logging {
    * @return
    */
   def getPartitionLengthsCached(blockId: ShuffleIndexBlockId): Array[Long] = {
-    cachedArrayLengths.getOrElsePut(blockId, getPartitionLengths)
+    cachedArrayLengths.getOrElsePut(blockId, readBlockAsArray)
   }
 
-  private def getPartitionLengths(blockId: ShuffleIndexBlockId): Array[Long] = {
+  def getChecksumsCached(shuffleId: Int, mapId: Long): Array[Long] = {
+    cachedChecksums.getOrElsePut(ShuffleChecksumBlockId(shuffleId, mapId, 0), readBlockAsArray)
+  }
+
+  def getChecksums(shuffleId: Int, mapId: Long): Array[Long] = {
+    getChecksums(ShuffleChecksumBlockId(shuffleId = shuffleId, mapId = mapId, reduceId = 0))
+  }
+
+  def getChecksums(blockId: ShuffleChecksumBlockId): Array[Long] = {
+    readBlockAsArray(blockId)
+  }
+
+  def createChecksumAlgorithm(algorithm: String): Checksum = {
+    algorithm match {
+      case "ADLER32" =>
+        new Adler32()
+      case "CRC32" =>
+        new CRC32()
+      case _ =>
+        throw new UnsupportedOperationException(f"Spark-S3-Shuffle: Unsupported shuffle checksum algorithm: ${algorithm}. Check with Spark.")
+    }
+  }
+
+  private def readBlockAsArray(blockId: BlockId) = {
     val file = new BufferedInputStream(dispatcher.openBlock(blockId))
     var buffer = new Array[Byte](1024)
     var numBytes = 0
