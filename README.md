@@ -37,6 +37,8 @@ These configuration values need to be passed to Spark to load and configure the 
 These are optional configuration values that control how s3-shuffle behaves.
 
 - `spark.shuffle.checksum.enabled`: `false` - Disables checksums on Shuffle files (default: `true`, recommended: `false`).
+- `spark.shuffle.s3.singleFileMapOutputWriterEnabled`: Enable the `SingleFileMapOutputWriter`. If set to `false`, Spark 
+  will write to the individual partitions directly potentially reducing local storage use (default: `true`).
 - `spark.shuffle.s3.cleanup`: Cleanup the shuffle files (default: `true`)
 - `spark.shuffle.s3.alwaysCreateIndex`: Always create an index file, even if all partitions have empty length (
   default: `false`)

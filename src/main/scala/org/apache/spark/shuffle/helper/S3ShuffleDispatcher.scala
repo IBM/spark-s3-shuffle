@@ -34,6 +34,7 @@ class S3ShuffleDispatcher extends Logging {
   val alwaysCreateIndex: Boolean = conf.getBoolean("spark.shuffle.s3.alwaysCreateIndex", defaultValue = false)
   val useBlockManager: Boolean = conf.getBoolean("spark.shuffle.s3.useBlockManager", defaultValue = true)
   val forceBatchFetch: Boolean = conf.getBoolean("spark.shuffle.s3.forceBatchFetch", defaultValue = false)
+  val enableSingleFileMapOutputWriter: Boolean = conf.getBoolean("spark.shuffle.s3.singleFileMapOutputWriterEnabled", defaultValue = true)
   val prefetchBatchSize: Int = conf.getInt("spark.shuffle.s3.prefetchBatchSize", defaultValue = 25)
   val prefetchThreadPoolSize: Int = conf.getInt("spark.shuffle.s3.prefetchThreadPoolSize", defaultValue = 100)
   val checksumEnabled: Boolean = SparkEnv.get.conf.get(config.SHUFFLE_CHECKSUM_ENABLED)
@@ -49,7 +50,8 @@ class S3ShuffleDispatcher extends Logging {
   logInfo(s"- spark.shuffle.s3.alwaysCreateIndex=${alwaysCreateIndex}")
   logInfo(s"- spark.shuffle.s3.useBlockManager=${useBlockManager}")
   logInfo(s"- spark.shuffle.s3.forceBatchFetch=${forceBatchFetch}")
-  logInfo(s"- spark.shuffle.s3.prefetchBlockSize=${prefetchBatchSize}")
+  logInfo(s"- spark.shuffle.s3.singleFileMapOutputWriterEnabled=${enableSingleFileMapOutputWriter}")
+  logInfo(s"- spark.shuffle.s3.prefetchBatchSize=${prefetchBatchSize}")
   logInfo(s"- spark.shuffle.s3.prefetchThreadPoolSize=${prefetchThreadPoolSize}")
   logInfo(s"- ${config.SHUFFLE_CHECKSUM_ENABLED.key}=${checksumEnabled}")
 

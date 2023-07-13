@@ -39,7 +39,10 @@ class S3ShuffleDataIO(sparkConf: SparkConf) extends ShuffleDataIO {
                                                   shuffleId: Int,
                                                   mapId: Long
                                                 ): Optional[SingleSpillShuffleMapOutputWriter] = {
-      Optional.of(new S3SingleSpillShuffleMapOutputWriter(shuffleId, mapId))
+      if (S3ShuffleDispatcher.get.enableSingleFileMapOutputWriter) {
+        return Optional.of(new S3SingleSpillShuffleMapOutputWriter(shuffleId, mapId))
+      }
+      Optional.empty
     }
   }
 
