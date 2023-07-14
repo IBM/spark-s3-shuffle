@@ -12,10 +12,11 @@ import org.apache.spark.shuffle.ConcurrentObjectMap
 import org.apache.spark.storage._
 import org.apache.spark.{SparkConf, SparkEnv}
 
+import java.io.IOException
 import java.net.URI
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
-import scala.concurrent.{Await, Future, blocking}
+import scala.concurrent.{Await, Future}
 
 /**
  * Helper class that configures Hadoop FS.
@@ -51,16 +52,20 @@ class S3ShuffleDispatcher extends Logging {
     SparkHadoopUtil.newConfiguration(conf)
   })
 
+  // Required
   logInfo(s"- spark.shuffle.s3.rootDir=${rootDir} (app dir: ${appDir})")
+
+  // Optional
   logInfo(s"- spark.shuffle.s3.cleanup=${cleanupShuffleFiles}")
+  logInfo(s"- spark.shuffle.s3.folderPrefixes=${folderPrefixes}")
   logInfo(s"- spark.shuffle.s3.prefetchBlockSize=${prefetchBatchSize}")
   logInfo(s"- spark.shuffle.s3.prefetchThreadPoolSize=${prefetchThreadPoolSize}")
-  logInfo(s"- spark.shuffle.s3.folderPrefixes=${folderPrefixes}")
 
   // Debug
   logInfo(s"- spark.shuffle.s3.alwaysCreateIndex=${alwaysCreateIndex} (default: false)")
   logInfo(s"- spark.shuffle.s3.useBlockManager=${useBlockManager} (default: true)")
   logInfo(s"- spark.shuffle.s3.forceBatchFetch=${forceBatchFetch} (default: false)")
+
   // Backports
   logInfo(s"- spark.shuffle.checksum.algorithm=${checksumAlgorithm} (backported from Spark 3.2.0)")
   logInfo(s"- spark.shuffle.checksum.enabled=${checksumEnabled} (backported from Spark 3.2.0)")
@@ -68,7 +73,12 @@ class S3ShuffleDispatcher extends Logging {
   def removeRoot(): Boolean = {
     Range(0, folderPrefixes).map(idx => {
       Future {
-        fs.delete(new Path(f"${rootDir}/${idx}${appDir}"), true)
+        val prefix = f"${rootDir}/${idx}${appDir}"
+        try {
+          fs.delete(new Path(prefix), true)
+        } catch {
+          case _: IOException => logDebug(s"Unable to delete prefix ${prefix}")
+        }
       }
     }).map(Await.result(_, Duration.Inf))
     true
