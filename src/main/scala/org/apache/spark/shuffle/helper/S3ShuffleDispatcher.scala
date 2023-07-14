@@ -26,39 +26,47 @@ class S3ShuffleDispatcher extends Logging {
   val appId: String = conf.getAppId
   val startTime: String = conf.get("spark.app.startTime")
 
+  // Required
   val rootDir = conf.get("spark.shuffle.s3.rootDir", defaultValue = "sparkS3shuffle")
   private val isCOS = rootDir.startsWith("cos://")
   private val isS3A = rootDir.startsWith("s3a://")
 
-  val checksumAlgorithm: String = conf.get("spark.shuffle.checksum.algorithm", defaultValue = "ADLER32")
-  val checksumEnabled: Boolean = conf.getBoolean("spark.shuffle.checksum.enabled", defaultValue = false)
+  // Optional
+  val cleanupShuffleFiles: Boolean = conf.getBoolean("spark.shuffle.s3.cleanup", defaultValue = true)
+  val folderPrefixes: Int = conf.getInt("spark.shuffle.s3.folderPrefixes", defaultValue = 10)
   val prefetchBatchSize: Int = conf.getInt("spark.shuffle.s3.prefetchBatchSize", defaultValue = 25)
   val prefetchThreadPoolSize: Int = conf.getInt("spark.shuffle.s3.prefetchThreadPoolSize", defaultValue = 100)
-  val alwaysCreateIndex: Boolean = conf.getBoolean("spark.shuffle.s3.alwaysCreateIndex", defaultValue = false)
-  val cleanupShuffleFiles: Boolean = conf.getBoolean("spark.shuffle.s3.cleanup", defaultValue = true)
 
+  // Debug
+  val alwaysCreateIndex: Boolean = conf.getBoolean("spark.shuffle.s3.alwaysCreateIndex", defaultValue = false)
   val useBlockManager: Boolean = conf.getBoolean("spark.shuffle.s3.useBlockManager", defaultValue = true)
   val forceBatchFetch: Boolean = conf.getBoolean("spark.shuffle.s3.forceBatchFetch", defaultValue = false)
+
+  // Backports
+  val checksumAlgorithm: String = conf.get("spark.shuffle.checksum.algorithm", defaultValue = "ADLER32")
+  val checksumEnabled: Boolean = conf.getBoolean("spark.shuffle.checksum.enabled", defaultValue = false)
 
   val appDir = f"/${startTime}-${appId}/"
   val fs: FileSystem = FileSystem.get(URI.create(rootDir), {
     SparkHadoopUtil.newConfiguration(conf)
   })
 
-  logInfo(s"- spark.shuffle.checksum.algorithm=${checksumAlgorithm} (backported from Spark 3.2.0)")
-  logInfo(s"- spark.shuffle.checksum.enabled=${checksumEnabled} (backported from Spark 3.2.0)")
+  logInfo(s"- spark.shuffle.s3.rootDir=${rootDir} (app dir: ${appDir})")
   logInfo(s"- spark.shuffle.s3.cleanup=${cleanupShuffleFiles}")
   logInfo(s"- spark.shuffle.s3.prefetchBlockSize=${prefetchBatchSize}")
   logInfo(s"- spark.shuffle.s3.prefetchThreadPoolSize=${prefetchThreadPoolSize}")
-  logInfo(s"- spark.shuffle.s3.rootDir=${rootDir} (app dir: ${appDir})")
+  logInfo(s"- spark.shuffle.s3.folderPrefixes=${folderPrefixes}")
 
+  // Debug
   logInfo(s"- spark.shuffle.s3.alwaysCreateIndex=${alwaysCreateIndex} (default: false)")
   logInfo(s"- spark.shuffle.s3.useBlockManager=${useBlockManager} (default: true)")
   logInfo(s"- spark.shuffle.s3.forceBatchFetch=${forceBatchFetch} (default: false)")
-
+  // Backports
+  logInfo(s"- spark.shuffle.checksum.algorithm=${checksumAlgorithm} (backported from Spark 3.2.0)")
+  logInfo(s"- spark.shuffle.checksum.enabled=${checksumEnabled} (backported from Spark 3.2.0)")
 
   def removeRoot(): Boolean = {
-    Range(0, 10).map(idx => {
+    Range(0, folderPrefixes).map(idx => {
       Future {
         fs.delete(new Path(f"${rootDir}/${idx}${appDir}"), true)
       }
@@ -75,12 +83,13 @@ class S3ShuffleDispatcher extends Logging {
       case ShuffleIndexBlockId(_, mapId, _) =>
         mapId
       case _ => 0
-    }) % 10
+    }) % folderPrefixes
     new Path(f"${rootDir}/${idx}${appDir}/${blockId.name}")
   }
 
   def getPath(blockId: ShuffleChecksumBlockId): Path = {
-    new Path(f"${rootDir}/${blockId.mapId % 10}${appDir}/${blockId.name}")
+    val idx = blockId.mapId % folderPrefixes
+    new Path(f"${rootDir}/${idx}${appDir}/${blockId.name}")
   }
 
   /**

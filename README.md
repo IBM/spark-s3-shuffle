@@ -26,33 +26,39 @@ These configuration values need to be passed to Spark to load and configure the 
     - `s3a://zrlio-tmp/` (Hadoop-AWS + AWS-SDK)
     - `cos://zrlio-tmp.resources/` (Hadoop-Cloud + Stocator)
 
-  Individual blocks are hashed in order to get improved performance when accessing them on the remote filesystem.
-  The generated paths look like this: `${rootDir}/${mapId % 10}/${appDir}/ShuffleBlock{.data / .index}`
+  Individual blocks are prefixed in order to get improved performance when accessing them on the remote filesystem.
+  The generated paths look like this: `${rootDir}/${mapId % 10}/${appDir}/ShuffleBlock{.data / .index}`.
+
+  The number of prefixes can be controlled with the option `spark.shuffle.s3.folderPrefixes`.
 
 ### Features
 
 Changing these values might have an impact on performance. 
 
+- `spark.shuffle.s3.cleanup`: Cleanup the shuffle files (default: `true`)
+- `spark.shuffle.s3.folderPrefixes`: The number of prefixes to use when storing files on S3
+  (default: `10`, minimum: `1`).
+
+  **Note**: This option can be used to optimize performance on object stores which have a prefix ratelimit.
+- `spark.shuffle.s3.prefetchBatchSize`: Prefetch batch size (default: `25`). Controls how many partitions are prefetched
+  concurrently per task.
+- `spark.shuffle.s3.prefetchThreadPoolSize`: Prefetch thread pool size (default: `100`). The total size of the thread
+  pool used for prefetching the shuffle blocks.
 - `spark.shuffle.checksum.algorithm`: Checksum algorithm (default: `ADLER32`, supported: `ADLER32`, `CRC32`), backport
   from Spark 3.2.0.
 - `spark.shuffle.checksum.enabled`: Enables checksums on Shuffle files (default: `false`), backport from Spark 3.2.0.
 
   **Note**: Creates additional overhead if active.
 
+
+### Debug configuration options
+
+Configuration options used for debugging:
+
 - `spark.shuffle.s3.alwaysCreateIndex`: Always create an index file, even if all partitions have empty length (
   default: `false`)
 
   **Note**: Creates additional overhead if active.
-
-- `spark.shuffle.s3.cleanup`: Cleanup the shuffle files (default: `true`)
-- `spark.shuffle.s3.prefetchBatchSize`: Prefetch batch size (default: `25`). Controls how many partitions are prefetched
-  concurrently per task.
-- `spark.shuffle.s3.prefetchThreadPoolSize`: Prefetch thread pool size (default: `100`). The total size of the thread
-  pool used for prefetching the shuffle blocks.
-
-### Unsafe configuration options
-
-Unsafe configurations options:
 
 - `spark.shuffle.s3.useBlockManager`: Use the Spark block manager to compute blocks (default: `true`).
 
