@@ -66,7 +66,6 @@ Configuration options used for debugging:
   barrier.
 
 - `spark.shuffle.s3.forceBatchFetch`: Force batch fetch for Shuffle Blocks (default: `false`)
-  if Storage-backend is S3A, `false` otherwise).
 
   **Note**: Can lead to invalid results.
 
