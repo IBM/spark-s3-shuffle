@@ -7,7 +7,7 @@ package org.apache.spark.shuffle.helper
 
 import org.apache.hadoop.fs._
 import org.apache.spark.deploy.SparkHadoopUtil
-import org.apache.spark.internal.Logging
+import org.apache.spark.internal.{Logging, config}
 import org.apache.spark.shuffle.ConcurrentObjectMap
 import org.apache.spark.storage._
 import org.apache.spark.{SparkConf, SparkEnv}
@@ -15,7 +15,7 @@ import org.apache.spark.{SparkConf, SparkEnv}
 import java.net.URI
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
-import scala.concurrent.{Await, Future}
+import scala.concurrent.{Await, Future, blocking}
 
 /**
  * Helper class that configures Hadoop FS.
@@ -36,6 +36,9 @@ class S3ShuffleDispatcher extends Logging {
   val prefetchBatchSize: Int = conf.getInt("spark.shuffle.s3.prefetchBatchSize", defaultValue = 25)
   val prefetchThreadPoolSize: Int = conf.getInt("spark.shuffle.s3.prefetchThreadPoolSize", defaultValue = 100)
 
+  val checksumEnabled: Boolean = conf.getBoolean("spark.shuffle.checksum.enabled", defaultValue = false)
+  val checksumAlgorithm: String = conf.get("spark.shuffle.checksum.algorithm", defaultValue = "ADLER32")
+
   val appDir = f"/${startTime}-${appId}/"
   val fs: FileSystem = FileSystem.get(URI.create(rootDir), {
     SparkHadoopUtil.newConfiguration(conf)
@@ -48,6 +51,8 @@ class S3ShuffleDispatcher extends Logging {
   logInfo(s"- spark.shuffle.s3.forceBatchFetch=${forceBatchFetch}")
   logInfo(s"- spark.shuffle.s3.prefetchBlockSize=${prefetchBatchSize}")
   logInfo(s"- spark.shuffle.s3.prefetchThreadPoolSize=${prefetchThreadPoolSize}")
+  logInfo(s"- spark.shuffle.checksum.enabled=${checksumEnabled} (backported from Spark 3.2.0)")
+  logInfo(s"- spark.shuffle.checksum.algorithm=${checksumAlgorithm} (backported from Spark 3.2.0)")
 
   def removeRoot(): Boolean = {
     Range(0, 10).map(idx => {
@@ -71,6 +76,10 @@ class S3ShuffleDispatcher extends Logging {
     new Path(f"${rootDir}/${idx}${appDir}/${blockId.name}")
   }
 
+  def getPath(blockId: ShuffleChecksumBlockId): Path = {
+    new Path(f"${rootDir}/${blockId.mapId % 10}${appDir}/${blockId.name}")
+  }
+
   /**
    * Open a block for reading.
    *
@@ -78,6 +87,10 @@ class S3ShuffleDispatcher extends Logging {
    * @return
    */
   def openBlock(blockId: BlockId): FSDataInputStream = {
+    fs.open(getPath(blockId))
+  }
+
+  def openBlock(blockId: ShuffleChecksumBlockId): FSDataInputStream = {
     fs.open(getPath(blockId))
   }
 
@@ -108,6 +121,10 @@ class S3ShuffleDispatcher extends Logging {
    * @return
    */
   def createBlock(blockId: BlockId): FSDataOutputStream = {
+    fs.create(getPath(blockId))
+  }
+
+  def createBlock(blockId: ShuffleChecksumBlockId): FSDataOutputStream = {
     fs.create(getPath(blockId))
   }
 }

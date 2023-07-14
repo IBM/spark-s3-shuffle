@@ -58,6 +58,7 @@ class S3ShuffleMapOutputWriter(
   }
 
   private val partitionLengths = Array.fill[Long](numPartitions)(0)
+  private lazy val checksums = Array.fill[Long](numPartitions)(0)
   private var totalBytesWritten: Long = 0
   private var lastPartitionWriterId: Int = -1
 
@@ -106,9 +107,12 @@ class S3ShuffleMapOutputWriter(
       bufferedStream.close()
     }
 
-    // Write index
+    // Write index and checksum.
     if (partitionLengths.sum > 0 || S3ShuffleDispatcher.get.alwaysCreateIndex) {
       S3ShuffleHelper.writePartitionLengths(shuffleId, mapId, partitionLengths)
+      if (dispatcher.checksumEnabled) {
+        S3ShuffleHelper.writeChecksum(shuffleId, mapId, checksums)
+      }
     }
     MapOutputCommitMessage.of(partitionLengths)
   }
@@ -165,11 +169,16 @@ class S3ShuffleMapOutputWriter(
     private var byteCount: Long = 0
     private var isClosed = false
 
+    private lazy val checksum = S3ShuffleHelper.createChecksumAlgorithm(dispatcher.checksumAlgorithm)
+
     def numBytesWritten: Long = byteCount
 
     override def write(b: Int): Unit = {
       if (isClosed) {
         throw new IOException("S3ShuffleOutputStream is already closed.")
+      }
+      if (dispatcher.checksumEnabled) {
+        checksum.update(b)
       }
       bufferedStream.write(b)
       byteCount += 1
@@ -178,6 +187,9 @@ class S3ShuffleMapOutputWriter(
     override def write(b: Array[Byte], off: Int, len: Int): Unit = {
       if (isClosed) {
         throw new IOException("S3ShuffleOutputStream is already closed.")
+      }
+      if (dispatcher.checksumEnabled) {
+        checksum.update(b, off, len)
       }
       bufferedStream.write(b, off, len)
       byteCount += len
@@ -192,6 +204,9 @@ class S3ShuffleMapOutputWriter(
 
     override def close(): Unit = {
       partitionLengths(reduceId) = byteCount
+      if (dispatcher.checksumEnabled) {
+        checksums(reduceId) = checksum.getValue
+      }
       totalBytesWritten += byteCount
       isClosed = true
     }
@@ -199,7 +214,7 @@ class S3ShuffleMapOutputWriter(
 
   private class S3ShufflePartitionWriterChannel(reduceId: Int)
     extends WritableByteChannelWrapper {
-    private val partChannel = new S3PartitionWritableByteChannel(bufferedStreamAsChannel)
+    private val partChannel = new S3PartitionWritableByteChannel(reduceId, bufferedStreamAsChannel)
 
     override def channel(): WritableByteChannel = {
       partChannel
@@ -210,13 +225,16 @@ class S3ShuffleMapOutputWriter(
     }
 
     override def close(): Unit = {
+      partChannel.close()
       partitionLengths(reduceId) = numBytesWritten
       totalBytesWritten += numBytesWritten
     }
   }
 
-  private class S3PartitionWritableByteChannel(channel: WritableByteChannel)
+  private class S3PartitionWritableByteChannel(reduceId: Int, channel: WritableByteChannel)
     extends WritableByteChannel {
+
+    private lazy val checksum = S3ShuffleHelper.createChecksumAlgorithm(dispatcher.checksumAlgorithm)
 
     private var count: Long = 0
 
@@ -229,10 +247,18 @@ class S3ShuffleMapOutputWriter(
     }
 
     override def close(): Unit = {
+      if (dispatcher.checksumEnabled) {
+        checksums(reduceId) = checksum.getValue
+      }
     }
 
     override def write(x: ByteBuffer): Int = {
       var c = 0
+      if (dispatcher.checksumEnabled) {
+        val pos = x.position()
+        checksum.update(x)
+        x.position(pos)
+      }
       while (x.hasRemaining()) {
         c += channel.write(x)
       }

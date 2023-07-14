@@ -25,11 +25,15 @@ These configuration values need to be passed to Spark to load and configure the 
    
   Individual blocks are hashed in order to get improved performance when accessing them on the remote filesystem.
   The generated paths look like this: `${rootDir}/${mapId % 10}/${appDir}/ShuffleBlock{.data / .index}`
-- `spark.shuffle.checksum.enabled`: `false` - Disables checksums for Shuffle files. Reason: This is not yet supported.
 
 ### Debug options / optimizations
 
 These are optional configuration values that control how s3-shuffle behaves.
+
+- `spark.shuffle.checksum.enabled`: Enables checksums on Shuffle files (default: `false`), backported 
+  from Spark 3.2.0.
+- `spark.shuffle.checksum.algorithm`: Checksum algorithm (default: `ADLER32`, supported: `ADLER32`, `CRC32`), backported
+  from SPark 3.2.0.
 - `spark.shuffle.s3.cleanup`: Cleanup the shuffle files (default: `true`)
 - `spark.shuffle.s3.alwaysCreateIndex`: Always create an index file, even if all partitions have empty length (
   default: `false`)

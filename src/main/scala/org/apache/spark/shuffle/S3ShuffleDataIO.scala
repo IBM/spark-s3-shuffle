@@ -39,6 +39,10 @@ class S3ShuffleDataIO(sparkConf: SparkConf) extends ShuffleDataIO {
                                                   shuffleId: Int,
                                                   mapId: Long
                                                 ): Optional[SingleSpillShuffleMapOutputWriter] = {
+      // Checksums are not supported for the single spill output writer.
+      if (S3ShuffleDispatcher.get.checksumEnabled) {
+        return Optional.empty()
+      }
       Optional.of(new S3SingleSpillShuffleMapOutputWriter(shuffleId, mapId))
     }
   }
