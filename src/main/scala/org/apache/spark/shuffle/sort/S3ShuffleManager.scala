@@ -30,6 +30,7 @@ import org.apache.spark.shuffle.api.ShuffleExecutorComponents
 import org.apache.spark.shuffle.helper.{S3ShuffleDispatcher, S3ShuffleHelper}
 import org.apache.spark.storage.S3ShuffleReader
 
+import java.io.IOException
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -153,13 +154,20 @@ private[spark] class S3ShuffleManager(conf: SparkConf) extends ShuffleManager wi
         }
       }
 
-      Range(0, 10).flatMap(idx => {
+      Range(0, dispatcher.folderPrefixes).flatMap(idx => {
         val path = new Path(f"${dispatcher.rootDir}/${idx}${dispatcher.appDir}")
-        dispatcher.fs.listStatus(path, shuffleIdFilter).map(f => {
-          Future {
-            dispatcher.fs.delete(f.getPath, false)
+        try {
+          dispatcher.fs.listStatus(path, shuffleIdFilter).map(f => {
+            Future {
+              dispatcher.fs.delete(f.getPath, false)
+            }
+          })
+        } catch {
+          case _: IOException => {
+            logDebug(s"Unable to delete ${path.getName}")
+            List()
           }
-        })
+        }
       }).foreach(Await.result(_, Duration.Inf))
     }
     true
@@ -167,7 +175,7 @@ private[spark] class S3ShuffleManager(conf: SparkConf) extends ShuffleManager wi
 
   /** Shut down this ShuffleManager. */
   override def stop(): Unit = {
-    val cleanupRequired = registeredShuffleIds.size > 0
+    val cleanupRequired = registeredShuffleIds.nonEmpty
     registeredShuffleIds.foreach(
       shuffleId => {
         purgeCaches(shuffleId)

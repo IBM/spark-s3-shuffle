@@ -57,9 +57,6 @@ class S3ShuffleReader[K, C](
   private val dep = handle.dependency
   private val maxBufferSize = conf.get(config.MAX_REMOTE_BLOCK_SIZE_FETCH_TO_MEM)
 
-  private val checksumEnabled: Boolean = conf.get(config.SHUFFLE_CHECKSUM_ENABLED)
-  private val checksumAlgorithm: String = conf.get(config.SHUFFLE_CHECKSUM_ALGORITHM)
-
   private val fetchContinousBlocksInBatch: Boolean = {
     val serializerRelocatable = dep.serializer.supportsRelocationOfSerializedObjects
     val compressed = conf.get(config.SHUFFLE_COMPRESS)
@@ -117,8 +114,8 @@ class S3ShuffleReader[K, C](
         stream.read()
         stream.reset()
 
-        val checkedStream = if (checksumEnabled) {
-          new S3ChecksumValidationStream(blockId, stream, checksumAlgorithm)
+        val checkedStream = if (dispatcher.checksumEnabled) {
+          new S3ChecksumValidationStream(blockId, stream, dispatcher.checksumAlgorithm)
         } else {
           stream
         }

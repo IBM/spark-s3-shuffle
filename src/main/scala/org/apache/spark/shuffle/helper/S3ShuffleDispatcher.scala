@@ -12,6 +12,7 @@ import org.apache.spark.shuffle.ConcurrentObjectMap
 import org.apache.spark.storage._
 import org.apache.spark.{SparkConf, SparkEnv}
 
+import java.io.IOException
 import java.net.URI
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
@@ -26,16 +27,25 @@ class S3ShuffleDispatcher extends Logging {
   val appId: String = conf.getAppId
   val startTime: String = conf.get("spark.app.startTime")
 
-  val cleanupShuffleFiles: Boolean = conf.getBoolean("spark.shuffle.s3.cleanup", defaultValue = true)
+  // Required
   val rootDir = conf.get("spark.shuffle.s3.rootDir", defaultValue = "sparkS3shuffle")
   private val isCOS = rootDir.startsWith("cos://")
   private val isS3A = rootDir.startsWith("s3a://")
+
+  // Optional
+  val cleanupShuffleFiles: Boolean = conf.getBoolean("spark.shuffle.s3.cleanup", defaultValue = true)
+  val folderPrefixes: Int = conf.getInt("spark.shuffle.s3.folderPrefixes", defaultValue = 10)
+  val prefetchBatchSize: Int = conf.getInt("spark.shuffle.s3.prefetchBatchSize", defaultValue = 25)
+  val prefetchThreadPoolSize: Int = conf.getInt("spark.shuffle.s3.prefetchThreadPoolSize", defaultValue = 100)
   val supportsUnbuffer: Boolean = conf.getBoolean("spark.shuffle.s3.supportsUnbuffer", defaultValue = isS3A)
+
+  // Debug
   val alwaysCreateIndex: Boolean = conf.getBoolean("spark.shuffle.s3.alwaysCreateIndex", defaultValue = false)
   val useBlockManager: Boolean = conf.getBoolean("spark.shuffle.s3.useBlockManager", defaultValue = true)
   val forceBatchFetch: Boolean = conf.getBoolean("spark.shuffle.s3.forceBatchFetch", defaultValue = false)
-  val prefetchBatchSize: Int = conf.getInt("spark.shuffle.s3.prefetchBatchSize", defaultValue = 25)
-  val prefetchThreadPoolSize: Int = conf.getInt("spark.shuffle.s3.prefetchThreadPoolSize", defaultValue = 100)
+
+  // Spark feature
+  val checksumAlgorithm: String = SparkEnv.get.conf.get(config.SHUFFLE_CHECKSUM_ALGORITHM)
   val checksumEnabled: Boolean = SparkEnv.get.conf.get(config.SHUFFLE_CHECKSUM_ENABLED)
 
   val appDir = f"/${startTime}-${appId}/"
@@ -43,20 +53,34 @@ class S3ShuffleDispatcher extends Logging {
     SparkHadoopUtil.newConfiguration(conf)
   })
 
+  // Required
   logInfo(s"- spark.shuffle.s3.rootDir=${rootDir} (app dir: ${appDir})")
+
+  // Optional
   logInfo(s"- spark.shuffle.s3.cleanup=${cleanupShuffleFiles}")
-  logInfo(s"- spark.shuffle.s3.supportsUnbuffer=${supportsUnbuffer}")
-  logInfo(s"- spark.shuffle.s3.alwaysCreateIndex=${alwaysCreateIndex}")
-  logInfo(s"- spark.shuffle.s3.useBlockManager=${useBlockManager}")
-  logInfo(s"- spark.shuffle.s3.forceBatchFetch=${forceBatchFetch}")
+  logInfo(s"- spark.shuffle.s3.folderPrefixes=${folderPrefixes}")
   logInfo(s"- spark.shuffle.s3.prefetchBlockSize=${prefetchBatchSize}")
   logInfo(s"- spark.shuffle.s3.prefetchThreadPoolSize=${prefetchThreadPoolSize}")
+  logInfo(s"- spark.shuffle.s3.supportsUnbuffer=${supportsUnbuffer}")
+
+  // Debug
+  logInfo(s"- spark.shuffle.s3.alwaysCreateIndex=${alwaysCreateIndex} (default: false)")
+  logInfo(s"- spark.shuffle.s3.useBlockManager=${useBlockManager} (default: true)")
+  logInfo(s"- spark.shuffle.s3.forceBatchFetch=${forceBatchFetch} (default: false)")
+
+  // Spark
+  logInfo(s"- ${config.SHUFFLE_CHECKSUM_ALGORITHM.key}=${checksumAlgorithm}")
   logInfo(s"- ${config.SHUFFLE_CHECKSUM_ENABLED.key}=${checksumEnabled}")
 
   def removeRoot(): Boolean = {
-    Range(0, 10).map(idx => {
+    Range(0, folderPrefixes).map(idx => {
       Future {
-        fs.delete(new Path(f"${rootDir}/${idx}${appDir}"), true)
+        val prefix = f"${rootDir}/${idx}${appDir}"
+        try {
+          fs.delete(new Path(prefix), true)
+        } catch {
+          case _: IOException => logDebug(s"Unable to delete prefix ${prefix}")
+        }
       }
     }).map(Await.result(_, Duration.Inf))
     true
@@ -73,7 +97,7 @@ class S3ShuffleDispatcher extends Logging {
       case ShuffleChecksumBlockId(_, mapId, _) =>
         mapId
       case _ => 0
-    }) % 10
+    }) % folderPrefixes
     new Path(f"${rootDir}/${idx}${appDir}/${blockId.name}")
   }
 
