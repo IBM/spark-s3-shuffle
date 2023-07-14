@@ -1,15 +1,15 @@
 # Shuffle Plugin for Apache Spark and S3 compatible storage services
 
 This plugin allows storing [Apache Spark](https://spark.apache.org/) shuffle data on S3 compatible object storage (e.g.
-S3A, COS).
-It uses the Java Hadoop-Filesystem abstraction for interoperability for COS, S3A and even local file systems.
+S3A, COS). It uses the Java Hadoop-Filesystem abstraction for interoperability for COS, S3A and even local file systems.
 
 Builds for Spark 3.1.x are tagged with `vX.X-spark3.1` and tracked on
 branch [spark-3.1](https://github.com/IBM/spark-s3-shuffle/tree/spark-3.1).
 
 *Note*: This plugin is based on [Apache Spark Pull Request #34864](https://github.com/apache/spark/pull/34864/files). It
-has
-since been significantly rewritten.
+has since been significantly rewritten.
+
+Examples are available [here](./examples).
 
 ## Building
 
@@ -29,31 +29,48 @@ These configuration values need to be passed to Spark to load and configure the 
     - `s3a://zrlio-tmp/` (Hadoop-AWS + AWS-SDK)
     - `cos://zrlio-tmp.resources/` (Hadoop-Cloud + Stocator)
 
-  Individual blocks are hashed in order to get improved performance when accessing them on the remote filesystem.
-  The generated paths look like this: `${rootDir}/${mapId % 10}/${appDir}/ShuffleBlock{.data / .index}`
+  Individual blocks are prefixed in order to get improved performance when accessing them on the remote filesystem.
+  The generated paths look like this: `${rootDir}/${mapId % 10}/${appDir}/ShuffleBlock{.data / .index}`.
 
-### Debug options / optimizations
+  The number of prefixes can be controlled with the option `spark.shuffle.s3.folderPrefixes`.
 
-These are optional configuration values that control how s3-shuffle behaves.
+### Features
 
-- `spark.shuffle.checksum.enabled`: `false` - Disables checksums on Shuffle files (default: `true`, recommended: `false`).
+Changing these values might have an impact on performance.
+
 - `spark.shuffle.s3.cleanup`: Cleanup the shuffle files (default: `true`)
-- `spark.shuffle.s3.alwaysCreateIndex`: Always create an index file, even if all partitions have empty length (
-  default: `false`)
-- `spark.shuffle.s3.useBlockManager`: Use the Spark block manager to compute blocks (default: `true`).
+- `spark.shuffle.s3.folderPrefixes`: The number of prefixes to use when storing files on S3
+  (default: `10`, minimum: `1`).
 
-  **Note**: Disabling
-  this feature might lead to invalid results. If the underlying data-store does not support strong read-after write
-  consistency for the list operation then this plugin might not see all blocks.
-
-  [AWS S3](https://aws.amazon.com/blogs/aws/amazon-s3-update-strong-read-after-write-consistency/) and
-  [IBM COS](https://cloud.ibm.com/docs/cloud-object-storage?topic=cloud-object-storage-versioning#versioning-consistency)
-  both are strongly consistent and are thus not affected.
-- `spark.shuffle.s3.forceBatchFetch`: Force batch fetch for Shuffle Blocks (default: `false`)
+  **Note**: This option can be used to optimize performance on object stores which have a prefix rate-limit.
+- `spark.shuffle.s3.prefetchBatchSize`: Prefetch batch size (default: `25`). Controls how many partitions are prefetched
+  concurrently per task.
+- `spark.shuffle.s3.prefetchThreadPoolSize`: Prefetch thread pool size (default: `100`). The total size of the thread
+  pool used for prefetching the shuffle blocks.
 - `spark.shuffle.s3.supportsUnbuffer`: Streams can be unbuffered instead of closed (default: `true`,
   if Storage-backend is S3A, `false` otherwise).
-- `spark.shuffle.s3.prefetchBatchSize`: Prefetch batch size (default: `10`).
-- `spark.shuffle.s3.prefetchThreadPoolSize`: Prefetch thread pool size (default: `40`).
+- `spark.shuffle.checksum.enabled`: Enables checksums on Shuffle files (default: `true`)
+
+  **Note**: This option creates additional overhead if active. Suggested configuration: `false`.
+
+
+### Debug configuration options
+
+Configuration options used for debugging:
+
+- `spark.shuffle.s3.alwaysCreateIndex`: Always create an index file, even if all partitions have empty length (
+  default: `false`)
+
+  **Note**: Creates additional overhead if active.
+
+- `spark.shuffle.s3.useBlockManager`: Use the Spark block manager to compute blocks (default: `true`).
+
+  **Note**: Disabling this feature might lead to invalid results. Only use if all the Shuffle operations require a
+  barrier.
+
+- `spark.shuffle.s3.forceBatchFetch`: Force batch fetch for Shuffle Blocks (default: `false`)
+
+  **Note**: Can lead to invalid results.
 
 ## Testing
 
@@ -64,14 +81,14 @@ The tests require the following environment variables to be set:
 - `S3_ENDPOINT_URL`: Endpoint URL of the S3 Service (e.g. `http://10.40.0.29:9000` or
   `https://s3.direct.us-south.cloud-object-storage.appdomain.cloud`).
 - `S3_ENDPOINT_USE_SSL`: Whether the endpoint supports SSL or not.
-- `S3_SHUFFLE_ROOT`: The shuffle root (e.g `s3a://zrlio-tmp/S3ShuffleManagerTests`)
+- `S3_SHUFFLE_ROOT`: The shuffle root (e.g `s3a://zrlio-tmp/`)
 
 ## Usage
 
 Copy one of the following files to your spark path:
 
-- `spark-s3-shuffle_2.12-1.0-SNAPSHOT-jar-with-dependencies.jar` (created by `sbt assembly`)
-- `spark-s3-shuffle_2.12-1.0-SNAPSHOT.jar` (created by `sbt package`)
+- `spark-s3-shuffle_2.12-SPARK_VERSION_SNAPSHOT-jar-with-dependencies.jar` (created by `sbt assembly`)
+- `spark-s3-shuffle_2.12-SPARK_VERSION_SNAPSHOT.jar` (created by `sbt package`)
 
 ### With S3 Plugin
 
