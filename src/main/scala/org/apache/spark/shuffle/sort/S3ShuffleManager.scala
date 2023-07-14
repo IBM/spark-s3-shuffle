@@ -167,16 +167,19 @@ private[spark] class S3ShuffleManager(conf: SparkConf) extends ShuffleManager wi
 
   /** Shut down this ShuffleManager. */
   override def stop(): Unit = {
+    val cleanupRequired = registeredShuffleIds.size > 0
     registeredShuffleIds.foreach(
       shuffleId => {
         purgeCaches(shuffleId)
         registeredShuffleIds.remove(shuffleId)
       })
-    if (dispatcher.cleanupShuffleFiles) {
-      logInfo(f"Cleaning up shuffle files in ${dispatcher.rootDir}.")
-      dispatcher.removeRoot()
-    } else {
-      logInfo(f"Manually cleanup shuffle files in ${dispatcher.rootDir}")
+    if (cleanupRequired) {
+      if (dispatcher.cleanupShuffleFiles) {
+        logInfo(f"Cleaning up shuffle files in ${dispatcher.rootDir}.")
+        dispatcher.removeRoot()
+      } else {
+        logInfo(f"Manually cleanup shuffle files in ${dispatcher.rootDir}")
+      }
     }
     shuffleBlockResolver.stop()
   }
