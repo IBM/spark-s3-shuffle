@@ -7,7 +7,7 @@ import org.apache.spark.shuffle.ConcurrentObjectMap
 import org.apache.spark.shuffle.IndexShuffleBlockResolver.NOOP_REDUCE_ID
 import org.apache.spark.storage.{BlockId, ShuffleIndexBlockId}
 
-import java.io.{BufferedInputStream, BufferedOutputStream}
+import java.io.{BufferedInputStream, BufferedOutputStream, IOException}
 import java.nio.ByteBuffer
 import java.util
 import java.util.zip.{Adler32, CRC32, Checksum}
@@ -92,12 +92,16 @@ object S3ShuffleHelper extends Logging {
         regex.matcher(path.getName).matches()
       }
     }
-    Range(0, 10).map(idx => {
+    Range(0, dispatcher.folderPrefixes).map(idx => {
       Future {
         val path = new Path(f"${dispatcher.rootDir}/${idx}${dispatcher.appDir}")
-        dispatcher.fs.listStatus(path, shuffleIndexFilter).map(v => {
-          BlockId.apply(v.getPath.getName).asInstanceOf[ShuffleIndexBlockId]
-        })
+        try {
+          dispatcher.fs.listStatus(path, shuffleIndexFilter).map(v => {
+            BlockId.apply(v.getPath.getName).asInstanceOf[ShuffleIndexBlockId]
+          })
+        } catch {
+          case _: IOException => Array.empty[ShuffleIndexBlockId]
+        }
       }
     }).flatMap(Await.result(_, Duration.Inf)).toArray
   }
