@@ -30,9 +30,10 @@ import org.apache.spark.shuffle.{BaseShuffleHandle, ShuffleReadMetricsReporter, 
 import org.apache.spark.storage.ShuffleBlockFetcherIterator.FetchBlockInfo
 import org.apache.spark.util.{CompletionIterator, ThreadUtils}
 import org.apache.spark.util.collection.ExternalSorter
-import org.apache.spark.{InterruptibleIterator, SparkConf, SparkEnv, TaskContext}
+import org.apache.spark.{InterruptibleIterator, SparkConf, SparkEnv, SparkException, TaskContext}
 
-import java.io.BufferedInputStream
+import java.io.{BufferedInputStream, InputStream}
+import java.util.zip.{CheckedInputStream, Checksum}
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, ExecutionContext, Future}
 
@@ -55,6 +56,9 @@ class S3ShuffleReader[K, C](
   private val dispatcher = S3ShuffleDispatcher.get
   private val dep = handle.dependency
   private val maxBufferSize = conf.get(config.MAX_REMOTE_BLOCK_SIZE_FETCH_TO_MEM)
+
+  private val checksumEnabled: Boolean = dispatcher.checksumEnabled
+  private val checksumAlgorithm: String = dispatcher.checksumAlgorithm
 
   private val fetchContinousBlocksInBatch: Boolean = {
     val serializerRelocatable = dep.serializer.supportsRelocationOfSerializedObjects
@@ -113,8 +117,14 @@ class S3ShuffleReader[K, C](
         stream.read()
         stream.reset()
 
+        val checkedStream = if (checksumEnabled) {
+          new S3ChecksumValidationStream(blockId, stream, checksumAlgorithm)
+        } else {
+          stream
+        }
+
         serializerInstance
-          .deserializeStream(serializerManager.wrapStream(blockId, stream))
+          .deserializeStream(serializerManager.wrapStream(blockId, checkedStream))
           .asKeyValueIterator
       }(S3ShuffleReader.asyncExecutionContext)
     }
