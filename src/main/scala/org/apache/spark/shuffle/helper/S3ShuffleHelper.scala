@@ -11,10 +11,9 @@ import java.io.{BufferedInputStream, BufferedOutputStream, IOException}
 import java.nio.ByteBuffer
 import java.util
 import java.util.zip.{Adler32, CRC32, Checksum}
-import java.util.regex.Pattern
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
-import scala.concurrent.{Await, Future, blocking}
+import scala.concurrent.{Await, Future}
 
 object S3ShuffleHelper extends Logging {
   private lazy val serializer = SparkEnv.get.serializer
@@ -22,7 +21,6 @@ object S3ShuffleHelper extends Logging {
 
   private val cachedChecksums = new ConcurrentObjectMap[ShuffleChecksumBlockId, Array[Long]]()
   private val cachedArrayLengths = new ConcurrentObjectMap[ShuffleIndexBlockId, Array[Long]]()
-  private val cachedIndexBlocks = new ConcurrentObjectMap[Int, Array[ShuffleIndexBlockId]]()
 
   /**
    * Purge cached shuffle indices.
@@ -30,9 +28,7 @@ object S3ShuffleHelper extends Logging {
    * @param shuffleIndex
    */
   def purgeCachedShuffleIndices(shuffleIndex: Int): Unit = {
-    val indexFilter = (idx: Int) => idx == shuffleIndex
     val blockFilter = (block: ShuffleIndexBlockId) => block.shuffleId == shuffleIndex
-    cachedIndexBlocks.remove(indexFilter, None)
     cachedArrayLengths.remove(blockFilter, None)
   }
 
@@ -60,22 +56,12 @@ object S3ShuffleHelper extends Logging {
     file.close()
   }
 
-  /**
-   * List cached shuffle indices.
-   *
-   * @param shuffleId
-   * @return
-   */
-  def listShuffleIndicesCached(shuffleId: Int): Array[ShuffleIndexBlockId] = {
-    cachedIndexBlocks.getOrElsePut(shuffleId, listShuffleIndices)
-  }
-
-  private def listShuffleIndices(shuffleId: Int): Array[ShuffleIndexBlockId] = {
+  def listShuffleIndices(shuffleId: Int): Array[ShuffleIndexBlockId] = {
     val shuffleIndexFilter: PathFilter = new PathFilter() {
-      private val regex = Pattern.compile(f"shuffle_${shuffleId}" + "_([0-9]+)_([0-9]+).index")
-
+      private val prefix = f"shuffle_${shuffleId}_"
       override def accept(path: Path): Boolean = {
-        regex.matcher(path.getName).matches()
+        val name = path.getName
+        name.startsWith(prefix) && name.endsWith("_0.index")
       }
     }
     Range(0, dispatcher.folderPrefixes).map(idx => {

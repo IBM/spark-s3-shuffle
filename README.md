@@ -65,8 +65,7 @@ Configuration options used for debugging:
 
 - `spark.shuffle.s3.useBlockManager`: Use the Spark block manager to compute blocks (default: `true`).
 
-  **Note**: Disabling this feature might lead to invalid results. Only use if all the Shuffle operations require a
-  barrier.
+  **Note**: Disabling this feature uses the file system listing to determine which shuffle blocks should be read.
 
 - `spark.shuffle.s3.forceBatchFetch`: Force batch fetch for Shuffle Blocks (default: `false`)
 

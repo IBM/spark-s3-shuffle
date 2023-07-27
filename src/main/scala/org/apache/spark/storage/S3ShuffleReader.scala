@@ -191,7 +191,7 @@ class S3ShuffleReader[K, C](
                      .flatMap(info => ShuffleBlockFetcherIterator.mergeContinuousShuffleBlockIdsIfNeeded(info, doBatchFetch))
                      .map(_.blockId)
     } else {
-      val indices = S3ShuffleHelper.listShuffleIndicesCached(shuffleId).filter(
+      val indices = S3ShuffleHelper.listShuffleIndices(shuffleId).filter(
         block => block.mapId >= startMapIndex && block.mapId < endMapIndex)
       if (doBatchFetch || dispatcher.forceBatchFetch) {
         indices.map(block => ShuffleBlockBatchId(block.shuffleId, block.mapId, startPartition, endPartition)).toIterator
