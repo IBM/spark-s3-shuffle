@@ -30,12 +30,12 @@ import org.apache.spark.shuffle.{BaseShuffleHandle, ShuffleReadMetricsReporter, 
 import org.apache.spark.storage.ShuffleBlockFetcherIterator.FetchBlockInfo
 import org.apache.spark.util.{CompletionIterator, ThreadUtils}
 import org.apache.spark.util.collection.ExternalSorter
-import org.apache.spark.{InterruptibleIterator, SparkConf, SparkEnv, SparkException, TaskContext}
+import org.apache.spark.{InterruptibleIterator, SparkConf, SparkEnv, TaskContext}
 
-import java.io.{BufferedInputStream, InputStream}
-import java.util.zip.{CheckedInputStream, Checksum}
-import scala.concurrent.duration.Duration
-import scala.concurrent.{Await, ExecutionContext, Future}
+import java.io.BufferedInputStream
+import scala.collection.mutable
+import scala.concurrent.{ExecutionContext, Future}
+import scala.util.{Failure, Success, Try}
 
 /**
  * This class was adapted from Apache Spark: BlockStoreShuffleReader.
@@ -55,7 +55,6 @@ class S3ShuffleReader[K, C](
 
   private val dispatcher = S3ShuffleDispatcher.get
   private val dep = handle.dependency
-  private val maxBufferSize = conf.get(config.MAX_REMOTE_BLOCK_SIZE_FETCH_TO_MEM)
 
   private val fetchContinousBlocksInBatch: Boolean = {
     val serializerRelocatable = dep.serializer.supportsRelocationOfSerializedObjects
@@ -77,17 +76,6 @@ class S3ShuffleReader[K, C](
     doBatchFetch
   }
 
-  // Source: Cassandra connector for Apache Spark (https://github.com/datastax/spark-cassandra-connector)
-  //         com.datastax.spark.connector.datasource.JoinHelper
-  // License: Apache 2.0
-  // See here for an explanation: http://www.russellspitzer.com/2017/02/27/Concurrency-In-Spark/
-  def slidingPrefetchIterator[T](it: Iterator[Future[T]], batchSize: Int): Iterator[T] = {
-    val (firstElements, lastElement) = it.grouped(batchSize)
-                                         .sliding(2)
-                                         .span(_ => it.hasNext)
-    (firstElements.map(_.head) ++ lastElement.flatten).flatten.map(Await.result(_, Duration.Inf))
-  }
-
   override def read(): Iterator[Product2[K, C]] = {
     val serializerInstance = dep.serializer.newInstance()
     val blocks = computeShuffleBlocks(handle.shuffleId,
@@ -98,35 +86,105 @@ class S3ShuffleReader[K, C](
 
     val wrappedStreams = new S3ShuffleBlockIterator(blocks)
 
-    // Create a key/value iterator for each stream
-    val recordIterPromise = wrappedStreams.filterNot(_._2.maxBytes == 0).map { case (blockId, wrappedStream) =>
-      readMetrics.incRemoteBytesRead(wrappedStream.maxBytes) // increase byte count.
-      readMetrics.incRemoteBlocksFetched(1)
-      // Note: the asKeyValueIterator below wraps a key/value iterator inside of a
-      // NextIterator. The NextIterator makes sure that close() is called on the
-      // underlying InputStream when all records have been read.
-      Future {
-        val bufferSize = scala.math.min(wrappedStream.maxBytes, maxBufferSize).toInt
-        val stream = new BufferedInputStream(wrappedStream, bufferSize)
+    /**
+     * Iterator which prefetches streams using futures.
+     */
+    class PrefetchIterator(iter: Iterator[(BlockId, S3ShuffleBlockStream)]) extends Iterator[Iterator[(Any, Any)]] {
+      var activeTasks: Int = 0
+      var error: Throwable = null
+      val completed = mutable.Stack[(Iterator[(Any, Any)], Long)]()
+      var bytesInFlight: Long = 0
+      var bytesCompleted: Long = 0
 
-        // Fill the buffered input stream by reading and then resetting the stream.
-        stream.mark(bufferSize)
-        stream.read()
-        stream.reset()
+      override def hasNext: Boolean = this.synchronized({
+        completed.nonEmpty || activeTasks > 0 || iter.hasNext
+      })
 
-        val checkedStream = if (dispatcher.checksumEnabled) {
-          new S3ChecksumValidationStream(blockId, stream, dispatcher.checksumAlgorithm)
-        } else {
-          stream
+      def onComplete(result: Try[(Iterator[(Any, Any)], Int)]): Unit = result match {
+        case Failure(exception) => this.synchronized {
+          error = exception
         }
+        case Success(value) => {
+          this.synchronized({
+            val numBytes = value._2.toLong
+            completed.push((value._1, numBytes))
+            activeTasks -= 1
+            bytesInFlight -= numBytes
+            bytesCompleted += numBytes
+            notifyAll()
+          })
+          addTasks()
+        }
+      }
 
-        serializerInstance
-          .deserializeStream(serializerManager.wrapStream(blockId, checkedStream))
-          .asKeyValueIterator
-      }(S3ShuffleReader.asyncExecutionContext)
+      override def next(): Iterator[(Any, Any)] = {
+        this.synchronized({
+          while (completed.isEmpty || error != null) {
+            try {
+              wait()
+            }
+            catch {
+              case _: InterruptedException =>
+                Thread.currentThread.interrupt()
+            }
+          }
+          if (error != null) {
+            throw error
+          }
+          val result = completed.pop()
+          addTasks()
+
+          bytesCompleted -= result._2
+          return result._1
+        })
+      }
+
+      private def createBufferedStream(block: BlockId, s3Stream: S3ShuffleBlockStream, bufferSize: Int): Future[(Iterator[(Any, Any)], Int)] = {
+        Future {
+          val stream = new BufferedInputStream(s3Stream, bufferSize)
+
+          // Fill the buffered input stream by reading and then resetting the stream.
+          stream.mark(bufferSize)
+          stream.read()
+          stream.reset()
+
+          readMetrics.incRemoteBytesRead(s3Stream.maxBytes) // increase byte count.
+          readMetrics.incRemoteBlocksFetched(1)
+
+          val checkedStream = if (dispatcher.checksumEnabled) {
+            new S3ChecksumValidationStream(block, stream, dispatcher.checksumAlgorithm)
+          } else {
+            stream
+          }
+
+          val result = serializerInstance
+            .deserializeStream(serializerManager.wrapStream(block, checkedStream))
+            .asKeyValueIterator
+          (result, bufferSize)
+        }(S3ShuffleReader.asyncExecutionContext)
+      }
+
+      private def addTasks(): Unit = {
+        this.synchronized {
+          while (iter.hasNext
+            && bytesInFlight < dispatcher.prefetchReducerMaxSizeInFlight
+            && activeTasks < dispatcher.prefetchReducerMaxActiveTasks
+            && (bytesInFlight + bytesCompleted) < dispatcher.prefetchReducerMaxBytes) //
+          {
+            val task = iter.next()
+            val size = scala.math.min(task._2.maxBytes, dispatcher.streamMaximumBufferSize).toInt
+            val fut = createBufferedStream(task._1, task._2, size)
+            bytesInFlight += size
+            activeTasks += 1
+            fut.onComplete(onComplete)(S3ShuffleReader.asyncExecutionContext)
+          }
+        }
+      }
+
+      addTasks()
     }
 
-    val recordIter = slidingPrefetchIterator(recordIterPromise, dispatcher.prefetchBatchSize).flatten
+    val recordIter = (new PrefetchIterator(wrappedStreams)).flatten
 
     // Update the context task metrics for each record read.
     val metricIter = CompletionIterator[(Any, Any), Iterator[(Any, Any)]](

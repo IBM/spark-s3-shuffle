@@ -45,16 +45,19 @@ Changing these values might have an impact on performance.
   (default: `10`, minimum: `1`).
 
   **Note**: This option can be used to optimize performance on object stores which have a prefix rate-limit.
-- `spark.shuffle.s3.prefetchBatchSize`: Prefetch batch size (default: `25`). Controls how many partitions are prefetched
-  concurrently per task.
 - `spark.shuffle.s3.prefetchThreadPoolSize`: Prefetch thread pool size (default: `100`). The total size of the thread
   pool used for prefetching the shuffle blocks.
+- `spark.shuffle.s3.prefetchReducerMaxBytes`: Maximum number of bytes to prefetch per reducer task (default: `128MiB`)
+- `spark.shuffle.s3.prefetchReducerMaxActiveTasks`: Maximum number of active reducer tasks used for prefetching shuffle
+  blocks (default: `25`).
+- `spark.shuffle.s3.prefetchReducerMaxSizeInFlight`: Maximum number of bytes in flight per reducer (
+  default: `48MiB`).
+- `spark.shuffle.s3.streamMaximumBufferSize`: Maximum buffer size per stream (default: `64MiB`).
 - `spark.shuffle.s3.supportsUnbuffer`: Streams can be unbuffered instead of closed (default: `true`,
   if Storage-backend is S3A, `false` otherwise).
 - `spark.shuffle.checksum.enabled`: Enables checksums on Shuffle files (default: `true`)
 
   **Note**: This option creates additional overhead if active. Suggested configuration: `false`.
-
 
 ### Debug configuration options
 
