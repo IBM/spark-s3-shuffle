@@ -103,7 +103,7 @@ private[spark] class S3ShuffleManager(conf: SparkConf) extends ShuffleManager wi
                                 context: TaskContext,
                                 metrics: ShuffleWriteMetricsReporter): ShuffleWriter[K, V] = {
     val env = SparkEnv.get
-    handle match {
+    val writer = handle match {
       case unsafeShuffleHandle: SerializedShuffleHandle[K@unchecked, V@unchecked] =>
         new UnsafeShuffleWriter(
           env.blockManager,
@@ -126,6 +126,7 @@ private[spark] class S3ShuffleManager(conf: SparkConf) extends ShuffleManager wi
       case other: BaseShuffleHandle[K@unchecked, V@unchecked, _] =>
         new SortShuffleWriter(other, mapId, context, shuffleExecutorComponents)
     }
+    new S3ShuffleWriter[K, V](writer)
   }
 
   def purgeCaches(shuffleId: Int): Unit = {
