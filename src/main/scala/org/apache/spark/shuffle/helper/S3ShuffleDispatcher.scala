@@ -33,6 +33,8 @@ class S3ShuffleDispatcher extends Logging {
   private val isS3A = rootDir.startsWith("s3a://")
 
   // Optional
+  val cachePartitionLengths: Boolean = conf.getBoolean("spark.shuffle.s3.cachePartitionLengths", defaultValue = true)
+  val cacheChecksums: Boolean = conf.getBoolean("spark.shuffle.s3.cacheChecksums", defaultValue = true)
   val cleanupShuffleFiles: Boolean = conf.getBoolean("spark.shuffle.s3.cleanup", defaultValue = true)
   val folderPrefixes: Int = conf.getInt("spark.shuffle.s3.folderPrefixes", defaultValue = 10)
   val prefetchBatchSize: Int = conf.getInt("spark.shuffle.s3.prefetchBatchSize", defaultValue = 25)
@@ -57,6 +59,8 @@ class S3ShuffleDispatcher extends Logging {
   logInfo(s"- spark.shuffle.s3.rootDir=${rootDir} (app dir: ${appDir})")
 
   // Optional
+  logInfo(s"- spark.shuffle.s3.cachePartitionLengths=${cachePartitionLengths}")
+  logInfo(s"- spark.shuffle.s3.cacheChecksums=${cacheChecksums}")
   logInfo(s"- spark.shuffle.s3.cleanup=${cleanupShuffleFiles}")
   logInfo(s"- spark.shuffle.s3.folderPrefixes=${folderPrefixes}")
   logInfo(s"- spark.shuffle.s3.prefetchBlockSize=${prefetchBatchSize}")

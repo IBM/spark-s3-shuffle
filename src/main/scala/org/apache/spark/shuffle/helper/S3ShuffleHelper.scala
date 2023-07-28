@@ -27,9 +27,15 @@ object S3ShuffleHelper extends Logging {
    *
    * @param shuffleIndex
    */
-  def purgeCachedShuffleIndices(shuffleIndex: Int): Unit = {
-    val blockFilter = (block: ShuffleIndexBlockId) => block.shuffleId == shuffleIndex
-    cachedArrayLengths.remove(blockFilter, None)
+  def purgeCachedDataForShuffle(shuffleIndex: Int): Unit = {
+    if (dispatcher.cachePartitionLengths) {
+      val filter = (block: ShuffleIndexBlockId) => block.shuffleId == shuffleIndex
+      cachedArrayLengths.remove(filter, None)
+    }
+    if (dispatcher.cacheChecksums) {
+      val filter = (block: ShuffleChecksumBlockId) => block.shuffleId == shuffleIndex
+      cachedChecksums.remove(filter, None)
+    }
   }
 
   /**
@@ -59,6 +65,7 @@ object S3ShuffleHelper extends Logging {
   def listShuffleIndices(shuffleId: Int): Array[ShuffleIndexBlockId] = {
     val shuffleIndexFilter: PathFilter = new PathFilter() {
       private val prefix = f"shuffle_${shuffleId}_"
+
       override def accept(path: Path): Boolean = {
         val name = path.getName
         name.startsWith(prefix) && name.endsWith("_0.index")
@@ -85,8 +92,8 @@ object S3ShuffleHelper extends Logging {
    * @param mapId
    * @return
    */
-  def getPartitionLengthsCached(shuffleId: Int, mapId: Long): Array[Long] = {
-    getPartitionLengthsCached(ShuffleIndexBlockId(shuffleId, mapId, NOOP_REDUCE_ID))
+  def getPartitionLengths(shuffleId: Int, mapId: Long): Array[Long] = {
+    getPartitionLengths(ShuffleIndexBlockId(shuffleId, mapId, NOOP_REDUCE_ID))
   }
 
   /**
@@ -95,19 +102,21 @@ object S3ShuffleHelper extends Logging {
    * @param blockId
    * @return
    */
-  def getPartitionLengthsCached(blockId: ShuffleIndexBlockId): Array[Long] = {
-    cachedArrayLengths.getOrElsePut(blockId, readBlockAsArray)
-  }
-
-  def getChecksumsCached(shuffleId: Int, mapId: Long): Array[Long] = {
-    cachedChecksums.getOrElsePut(ShuffleChecksumBlockId(shuffleId, mapId, 0), readBlockAsArray)
+  def getPartitionLengths(blockId: ShuffleIndexBlockId): Array[Long] = {
+    if (dispatcher.cachePartitionLengths) {
+      return cachedArrayLengths.getOrElsePut(blockId, readBlockAsArray)
+    }
+    readBlockAsArray(blockId)
   }
 
   def getChecksums(shuffleId: Int, mapId: Long): Array[Long] = {
-    getChecksums(ShuffleChecksumBlockId(shuffleId = shuffleId, mapId = mapId, reduceId = 0))
+    getChecksums(ShuffleChecksumBlockId(shuffleId, mapId, 0))
   }
 
   def getChecksums(blockId: ShuffleChecksumBlockId): Array[Long] = {
+    if (dispatcher.cacheChecksums) {
+      return cachedChecksums.getOrElsePut(blockId, readBlockAsArray)
+    }
     readBlockAsArray(blockId)
   }
 

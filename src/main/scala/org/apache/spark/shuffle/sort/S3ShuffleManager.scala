@@ -133,7 +133,7 @@ private[spark] class S3ShuffleManager(conf: SparkConf) extends ShuffleManager wi
     // Remove and close all input streams.
     dispatcher.closeCachedBlocks(shuffleId)
     // Remove metadata.
-    S3ShuffleHelper.purgeCachedShuffleIndices(shuffleId)
+    S3ShuffleHelper.purgeCachedDataForShuffle(shuffleId)
   }
 
   /** Remove a shuffle's metadata from the ShuffleManager. */
