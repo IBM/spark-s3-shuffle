@@ -38,6 +38,8 @@ These configuration values need to be passed to Spark to load and configure the 
 
 Changing these values might have an impact on performance.
 
+- `spark.shuffle.s3.cachePartitionLengths`: Cache partition lengths in memory (default: `true`)
+- `spark.shuffle.s3.cacheChecksums`: Cache checksums in memory (default: `true`)
 - `spark.shuffle.s3.cleanup`: Cleanup the shuffle files (default: `true`)
 - `spark.shuffle.s3.folderPrefixes`: The number of prefixes to use when storing files on S3
   (default: `10`, minimum: `1`).

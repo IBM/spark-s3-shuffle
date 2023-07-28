@@ -57,7 +57,7 @@ class S3ShuffleBlockIterator(
   }
 
   def getAccumulatedLengths(shuffleId: Int, mapId: Long): Array[Long] = {
-    val lengths = S3ShuffleHelper.getPartitionLengthsCached(shuffleId, mapId)
+    val lengths = S3ShuffleHelper.getPartitionLengths(shuffleId, mapId)
     Array[Long](0) ++ lengths.tail.scan(lengths.head)(_ + _)
   }
 }

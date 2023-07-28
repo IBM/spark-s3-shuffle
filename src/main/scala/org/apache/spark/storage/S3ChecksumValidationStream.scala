@@ -27,12 +27,13 @@ class S3ChecksumValidationStream(
   }
 
   private val checksum: Checksum = S3ShuffleHelper.createChecksumAlgorithm(checksumAlgorithm)
-  private val lengths: Array[Long] = S3ShuffleHelper.getPartitionLengthsCached(shuffleId, mapId)
-  private val referenceChecksums: Array[Long] = S3ShuffleHelper.getChecksumsCached(shuffleId, mapId)
+  private val lengths: Array[Long] = S3ShuffleHelper.getPartitionLengths(shuffleId, mapId)
+  private val referenceChecksums: Array[Long] = S3ShuffleHelper.getChecksums(shuffleId, mapId)
 
   private var pos: Long = 0
   private var reduceId: Int = startReduceId
   private var blockLength: Long = lengths(reduceId)
+
   private def eof(): Boolean = reduceId > endReduceId
 
   validateChecksum()
