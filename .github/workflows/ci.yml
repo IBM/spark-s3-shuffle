@@ -39,9 +39,6 @@ jobs:
         distribution: temurin
         java-version: 11
         cache: sbt
-    - name: Prepare build
-      shell: bash
-      run: ./.github/prepare-build.sh
     - name: Package
       shell: bash
       run: |

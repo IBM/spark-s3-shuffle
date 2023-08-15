@@ -6,9 +6,26 @@
 scalaVersion := sys.env.getOrElse("SCALA_VERSION", "2.12.15")
 organization := "com.ibm"
 name := "spark-s3-shuffle"
-version := "SNAPSHOT"
 
 val sparkVersion = sys.env.getOrElse("SPARK_VERSION", "3.1.2")
+
+enablePlugins(GitVersioning, BuildInfoPlugin)
+
+// Git
+git.useGitDescribe := true
+git.uncommittedSignifier := Some("DIRTY")
+
+// Build info
+buildInfoObject := "SparkS3ShuffleBuild"
+buildInfoPackage := "com.ibm"
+buildInfoKeys ++= Seq[BuildInfoKey](
+  BuildInfoKey.action("buildTime") {
+    System.currentTimeMillis
+  },
+  BuildInfoKey.action("sparkVersion") {
+    sparkVersion
+  }
+)
 
 libraryDependencies ++= Seq(
   "org.apache.spark" %% "spark-core" % sparkVersion % "provided",
@@ -34,7 +51,7 @@ assemblyMergeStrategy := {
   case PathList("META-INF", xs@_*) => MergeStrategy.discard
   case x => MergeStrategy.first
 }
-assembly / assemblyJarName := s"${name.value}_${scalaBinaryVersion.value}-${sparkVersion}_${version.value}-with-dependencies.jar"
+assembly / assemblyJarName := s"${name.value}_${scalaBinaryVersion.value}-${sparkVersion}_${version}-with-dependencies.jar"
 assembly / assemblyOption ~= {
   _.withIncludeScala(false)
 }

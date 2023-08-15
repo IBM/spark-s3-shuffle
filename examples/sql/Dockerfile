@@ -39,7 +39,7 @@ ENV SPARK_VERSION=${SPARK_VERSION}
 COPY . /spark-s3-shuffle
 RUN cd /spark-s3-shuffle \
     && sbt package \
-    && ls target/scala-2.12/*
+    && ls target/scala-2.12/*.jar
 
 # Result /spark-s3-shuffle/target/scala-2.12/spark-s3-shuffle_2.12-${SPARK_VERSION}_SNAPSHOT.jar 
 
@@ -56,7 +56,7 @@ ADD https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/${HADOOP_VERSION
 ADD https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk-bundle/${AWS_SDK_VERSION}/aws-java-sdk-bundle-${AWS_SDK_VERSION}.jar "${SPARK_HOME}/jars/aws-java-sdk-bundle-${AWS_SDK_VERSION}.jar"
 
 # S3-Shuffle plugin
-COPY --from=s3-shuffle-builder /spark-s3-shuffle/target/scala-2.12/spark-s3-shuffle_2.12-${SPARK_VERSION}_SNAPSHOT.jar "${SPARK_HOME}/jars/"
+COPY --from=s3-shuffle-builder /spark-s3-shuffle/target/scala-2.12/*.jar "${SPARK_HOME}/jars/"
 # Release
 # ADD https://github.com/IBM/spark-s3-shuffle/releases/download/v${S3_SHUFFLE_VERSION}/spark-s3-shuffle_2.12-${SPARK_VERSION}_${S3_SHUFFLE_VERSION}.jar "${SPARK_HOME}/jars/spark-s3-shuffle_2.12-${SPARK_VERSION}_${S3_SHUFFLE_VERSION}.jar"
 
