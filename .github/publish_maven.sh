@@ -33,8 +33,8 @@ else
 fi
 
 
-FILE=$(ls target/scala*/*.jar)
-POM=$(ls target/scala*/*.pom)
+FILE=$(ls target/scala*/sbt*/*.jar)
+POM=$(ls target/scala*/sbt*/*.pom)
 
 mvn deploy:deploy-file \
   -Durl=https://maven.pkg.github.com/IBM/spark-s3-shuffle \

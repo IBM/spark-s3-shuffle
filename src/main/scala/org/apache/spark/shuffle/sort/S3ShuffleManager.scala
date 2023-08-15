@@ -22,6 +22,8 @@
 
 package org.apache.spark.shuffle.sort
 
+import com.ibm.SparkS3ShuffleBuild
+
 import org.apache.hadoop.fs.{Path, PathFilter}
 import org.apache.spark._
 import org.apache.spark.internal.Logging
@@ -42,7 +44,9 @@ import scala.concurrent.{Await, Future}
  * This class was adapted from Apache Spark: SortShuffleManager.scala
  */
 private[spark] class S3ShuffleManager(conf: SparkConf) extends ShuffleManager with Logging {
-  logInfo("Configured S3ShuffleManager (SNAPSHOT).")
+  val versionString = s"${SparkS3ShuffleBuild.name}-${SparkS3ShuffleBuild.version} " +
+    s"for ${SparkS3ShuffleBuild.sparkVersion}_${SparkS3ShuffleBuild.scalaVersion}"
+  logInfo(s"Configured S3ShuffleManager (${versionString}).")
   private lazy val dispatcher = S3ShuffleDispatcher.get
   private lazy val shuffleExecutorComponents = S3ShuffleManager.loadShuffleExecutorComponents(conf)
   /**
