@@ -7,6 +7,7 @@ package org.apache.spark.shuffle.helper
 
 import org.apache.hadoop.fs._
 import org.apache.spark.deploy.SparkHadoopUtil
+import org.apache.spark.internal.config.{MAX_REMOTE_BLOCK_SIZE_FETCH_TO_MEM, SHUFFLE_FILE_BUFFER_SIZE}
 import org.apache.spark.internal.{Logging, config}
 import org.apache.spark.shuffle.ConcurrentObjectMap
 import org.apache.spark.storage._
@@ -33,6 +34,8 @@ class S3ShuffleDispatcher extends Logging {
   private val isS3A = rootDir.startsWith("s3a://")
 
   // Optional
+  val bufferSize: Int = conf.getInt("spark.shuffle.s3.bufferSize", defaultValue = conf.get(SHUFFLE_FILE_BUFFER_SIZE).toInt * 1024)
+  val bufferInputSize: Int = conf.getInt("spark.shuffle.s3.bufferInputSize", defaultValue = conf.get(MAX_REMOTE_BLOCK_SIZE_FETCH_TO_MEM).toInt)
   val cleanupShuffleFiles: Boolean = conf.getBoolean("spark.shuffle.s3.cleanup", defaultValue = true)
   val folderPrefixes: Int = conf.getInt("spark.shuffle.s3.folderPrefixes", defaultValue = 10)
   val prefetchBatchSize: Int = conf.getInt("spark.shuffle.s3.prefetchBatchSize", defaultValue = 25)
@@ -56,6 +59,8 @@ class S3ShuffleDispatcher extends Logging {
   logInfo(s"- spark.shuffle.s3.rootDir=${rootDir} (app dir: ${appDir})")
 
   // Optional
+  logInfo(s"- spark.shuffle.s3.bufferSize=${bufferSize}")
+  logInfo(s"- spark.shuffle.s3.bufferInputSize=${bufferInputSize}")
   logInfo(s"- spark.shuffle.s3.cleanup=${cleanupShuffleFiles}")
   logInfo(s"- spark.shuffle.s3.folderPrefixes=${folderPrefixes}")
   logInfo(s"- spark.shuffle.s3.prefetchBlockSize=${prefetchBatchSize}")

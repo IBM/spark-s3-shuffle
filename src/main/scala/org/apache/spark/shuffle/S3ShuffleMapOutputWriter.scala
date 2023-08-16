@@ -8,7 +8,7 @@ package org.apache.spark.shuffle
 import org.apache.hadoop.fs.FSDataOutputStream
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
-import org.apache.spark.internal.config.SHUFFLE_UNSAFE_FILE_OUTPUT_BUFFER_SIZE
+import org.apache.spark.internal.config.SHUFFLE_FILE_BUFFER_SIZE
 import org.apache.spark.shuffle.IndexShuffleBlockResolver.NOOP_REDUCE_ID
 import org.apache.spark.shuffle.api.metadata.MapOutputCommitMessage
 import org.apache.spark.shuffle.api.{ShuffleMapOutputWriter, ShufflePartitionWriter, WritableByteChannelWrapper}
@@ -44,9 +44,8 @@ class S3ShuffleMapOutputWriter(
 
   def initStream(): Unit = {
     if (stream == null) {
-      val bufferSize = conf.get(SHUFFLE_UNSAFE_FILE_OUTPUT_BUFFER_SIZE).toInt * 1024
       stream = dispatcher.createBlock(shuffleBlock)
-      bufferedStream = new BufferedOutputStream(stream, bufferSize)
+      bufferedStream = new BufferedOutputStream(stream, dispatcher.bufferSize)
     }
   }
 
