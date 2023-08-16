@@ -55,7 +55,7 @@ class S3ShuffleReader[K, C](
 
   private val dispatcher = S3ShuffleDispatcher.get
   private val dep = handle.dependency
-  private val maxBufferSize = conf.get(config.MAX_REMOTE_BLOCK_SIZE_FETCH_TO_MEM)
+  private val bufferInputSize = dispatcher.bufferInputSize
 
   private val fetchContinousBlocksInBatch: Boolean = {
     val serializerRelocatable = dep.serializer.supportsRelocationOfSerializedObjects
@@ -106,7 +106,7 @@ class S3ShuffleReader[K, C](
       // NextIterator. The NextIterator makes sure that close() is called on the
       // underlying InputStream when all records have been read.
       Future {
-        val bufferSize = scala.math.min(wrappedStream.maxBytes, maxBufferSize).toInt
+        val bufferSize = scala.math.min(wrappedStream.maxBytes, bufferInputSize).toInt
         val stream = new BufferedInputStream(wrappedStream, bufferSize)
 
         // Fill the buffered input stream by reading and then resetting the stream.
