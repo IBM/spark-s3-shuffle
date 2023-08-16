@@ -50,3 +50,52 @@ export SIZE=100         # Options: 10, 100 (default), 1000
 export USE_S3_SHUFFLE=1 # Options: 0, 1 (default) (enable shuffle on S3)
 ./sql/run_tpcds.sh
 ```
+
+## Profiling
+
+Deploy influxdb and adapt configuration in `profiler_config.yml`. A sample configuration can be
+found in `influxdb_kubernetes.yml`.
+
+To enable profiling set the environment variable `USE_PROFILER` to `1`:
+```
+export USE_PROFILER=1
+```
+and run the examples above.
+
+See [this InfoQ article](https://www.infoq.com/articles/spark-application-monitoring-influxdb-grafana/) 
+how influxdb and the JVM-Profiler interact with Grafana.
+
+### Grafana Queries Sample Queries
+
+Assumption: Configure a `sampleinterval` interval variable in the Grafana page.
+
+Show Max(CPU) usage by process:
+
+```
+SELECT max("processCpuLoad") FROM "CpuAndMemory" WHERE "role" = 'executor' AND $timeFilter  GROUP BY time($sampleinterval), processUuid fill(none)```
+```
+
+Executor heap memory consumption (sum): 
+```
+SELECT SUM("heapMemoryTotalUsed") as Used, SUM("heapMemoryCommitted") as Committed from "autogen"."CpuAndMemory" where "role" = 'executor' AND $timeFilter GROUP BY time($sampleinterval)
+```
+
+Per-executor heap memory consumption (max):
+```
+select MAX("heapMemoryTotalUsed") as Used, Max("heapMemoryCommitted") as Committed from "autogen"."CpuAndMemory" where "role" = 'executor' AND $timeFilter GROUP BY time($sampleinterval), processUuid fill(none)```
+
+
+Measure the S3ShuffleReader threads:
+```
+SELECT time, COUNT(host) AS S3ShuffleReader FROM Stacktrace WHERE "role" = 'executor' AND "stacktrace" =~ /S3ShuffleReader/ AND $timeFilter GROUP BY time($sampleinterval) fill(none)
+```
+
+Measure the S3ShuffleWriter threads:
+```
+SELECT time, COUNT(processUuid) AS S3ShuffleWriter FROM Stacktrace WHERE "role" = 'executor' AND "stacktrace" =~ /S3ShuffleWriter/ AND $timeFilter GROUP BY time($sampleinterval) fill(none)
+```
+
+Measure the ExternalSorter threads:
+```
+SELECT time, COUNT(processUuid) AS ExternalSorter FROM Stacktrace WHERE "role" = 'executor' AND "stacktrace" =~ /ShuffleExternalSorter/ AND $timeFilter GROUP BY time($sampleinterval) 
+```

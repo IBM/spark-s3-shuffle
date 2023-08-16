@@ -1,0 +1,6 @@
+influxdb:
+  tag: influxdb
+  host: influxdb
+  database: influxdb
+  username: admin
+  password: admin

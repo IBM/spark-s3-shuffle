@@ -79,6 +79,13 @@ if (( "$USE_NFS_SHUFFLE" == 1 )); then
     )
 fi
 
+USE_PROFILER=${USE_PROFILER:-0}
+if (( "${USE_PROFILER}" == 1 )); then
+    PROFILER_CONFIG="reporter=com.uber.profiling.reporters.InfluxDBOutputReporter,configProvider=com.uber.profiling.YamlConfigProvider,configFile=/profiler_config.yml,metricInterval=5000,sampleInterval=5000,ioProfiling=true"
+    DRIVER_JAVA_OPTIONS="${DRIVER_JAVA_OPTIONS} -javaagent:/opt/spark/jars/jvm-profiler-1.0.0.jar=${PROFILER_CONFIG}"
+    EXECUTOR_JAVA_OPTIONS="${EXECUTOR_JAVA_OPTIONS} -javaagent:/opt/spark/jars/jvm-profiler-1.0.0.jar=${PROFILER_CONFIG}"
+fi
+
 ${SPARK_HOME}/bin/spark-submit \
     --master k8s://$KUBERNETES_SERVER \
     --deploy-mode cluster \

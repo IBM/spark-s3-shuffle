@@ -1,0 +1,49 @@
+#
+# Copyright 2023- IBM Inc. All rights reserved
+# SPDX-License-Identifier: Apache-2.0
+#
+# ---
+# A simple influx db Kubernetes deployment to gather JVM metrics.
+#
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    app.kubernetes.io/name: influxdb
+  name: influxdb
+spec:
+  containers:
+  - name: influxdb
+    image: docker.io/influxdb:1.8
+    imagePullPolicy: Always
+    resources:
+      requests:
+        memory: "16G"
+        cpu: "4"
+      limits:
+        memory: "16G"
+        cpu: "4"
+    env:
+      - name: INFLUXDB_ADMIN_USER
+        value: admin
+      - name: INFLUXDB_ADMIN_PASSWORD
+        value: admin
+      - name: INFLUXDB_DB
+        value: influxdb
+    ports:
+      - containerPort: 8086
+        name: influxdb-port
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: influxdb
+spec:
+  selector:
+    app.kubernetes.io/name: influxdb
+  ports:
+  - name: influxdb-port
+    protocol: TCP
+    port: 8086
+    targetPort: influxdb-port
+---
