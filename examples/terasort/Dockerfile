@@ -17,6 +17,14 @@ RUN apt-get clean && apt-get update \
     && apt-get clean
 
 ###
+# Profiling
+FROM java-prerequisites as profiler-builder
+
+RUN git clone https://github.com/uber-common/jvm-profiler \
+    && cd /jvm-profiler \
+    && mvn -P influxdb clean package
+
+###
 # terasort
 FROM java-prerequisites as terasort-builder
 
@@ -53,13 +61,18 @@ ADD https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/${HADOOP_VERSION
 ADD https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-cloud-storage/${HADOOP_VERSION}/hadoop-cloud-storage-${HADOOP_VERSION}.jar "${SPARK_HOME}/jars/hadoop-cloud-storage-${HADOOP_VERSION}.jar"
 ADD https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk-bundle/${AWS_SDK_VERSION}/aws-java-sdk-bundle-${AWS_SDK_VERSION}.jar "${SPARK_HOME}/jars/aws-java-sdk-bundle-${AWS_SDK_VERSION}.jar"
 
+# JVM-Profiler
+COPY --from=profiler-builder /jvm-profiler/target/jvm-profiler-1.0.0.jar "${SPARK_HOME}/jars/"
+
+# TeraSort
+COPY --from=terasort-builder /spark-terasort/target/spark-terasort-1.2-SNAPSHOT.jar "${SPARK_HOME}/jars/"
+
 # S3-Shuffle plugin
 COPY --from=s3-shuffle-builder /spark-s3-shuffle/target/scala-2.12/*.jar "${SPARK_HOME}/jars/"
 # Release
 # ADD https://github.com/IBM/spark-s3-shuffle/releases/download/v${S3_SHUFFLE_VERSION}/spark-s3-shuffle_2.12-${SPARK_VERSION}_${S3_SHUFFLE_VERSION}.jar "${SPARK_HOME}/jars/spark-s3-shuffle_2.12-${SPARK_VERSION}_${S3_SHUFFLE_VERSION}.jar"
 
-# TeraSort
-COPY --from=terasort-builder /spark-terasort/target/spark-terasort-1.2-SNAPSHOT.jar "${SPARK_HOME}/jars/"
+ADD examples/profiler_config.yml /
 
 USER root
 RUN chmod +r ${SPARK_HOME}/jars/*.jar
