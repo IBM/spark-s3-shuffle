@@ -38,6 +38,10 @@ These configuration values need to be passed to Spark to load and configure the 
 
 Changing these values might have an impact on performance.
 
+- `spark.shuffle.s3.bufferSize`: Default size of the buffered output streams (default: `32768`,
+  uses `spark.shuffle.file.buffer` as default)
+- `spark.shuffle.s3.maxBufferSize`: Maximum size of buffered input streams (default: `209715200`,
+  uses `spark.network.maxRemoteBlockSizeFetchToMem` as default)
 - `spark.shuffle.s3.cachePartitionLengths`: Cache partition lengths in memory (default: `true`)
 - `spark.shuffle.s3.cacheChecksums`: Cache checksums in memory (default: `true`)
 - `spark.shuffle.s3.cleanup`: Cleanup the shuffle files (default: `true`)
