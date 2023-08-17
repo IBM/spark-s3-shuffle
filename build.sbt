@@ -24,21 +24,24 @@ buildInfoKeys ++= Seq[BuildInfoKey](
   BuildInfoKey.action("sparkVersion") {
     sparkVersion
   }
-)
+  )
 
 libraryDependencies ++= Seq(
   "org.apache.spark" %% "spark-core" % sparkVersion % "provided",
   "org.apache.spark" %% "spark-sql" % sparkVersion % "provided",
   "org.apache.spark" %% "spark-hadoop-cloud" % sparkVersion % "compile",
-
-  // Note: The tests don't work with Scala 2.13
-  "junit" % "junit" % "4.13.2" % Test, // TRAVIS_SCALA_WORKAROUND_REMOVE_LINE
-  "org.scalatest" %% "scalatest" % "3.2.2" % Test, // TRAVIS_SCALA_WORKAROUND_REMOVE_LINE
-  "ch.cern.sparkmeasure" %% "spark-measure" % "0.18" % Test, // TRAVIS_SCALA_WORKAROUND_REMOVE_LINE
-  "org.scalacheck" %% "scalacheck" % "1.15.2" % Test, // TRAVIS_SCALA_WORKAROUND_REMOVE_LINE
-  "org.mockito" % "mockito-core" % "3.4.6" % Test, // TRAVIS_SCALA_WORKAROUND_REMOVE_LINE
-  "org.scalatestplus" %% "mockito-3-4" % "3.2.9.0" % Test // TRAVIS_SCALA_WORKAROUND_REMOVE_LINE
   )
+
+libraryDependencies ++= (if (scalaBinaryVersion.value == "2.12") Seq(
+  "junit" % "junit" % "4.13.2" % Test,
+  "org.scalatest" %% "scalatest" % "3.2.2" % Test,
+  "ch.cern.sparkmeasure" %% "spark-measure" % "0.18" % Test,
+  "org.scalacheck" %% "scalacheck" % "1.15.2" % Test,
+  "org.mockito" % "mockito-core" % "3.4.6" % Test,
+  "org.scalatestplus" %% "mockito-3-4" % "3.2.9.0" % Test
+  )
+else Seq())
+
 javacOptions ++= Seq("-source", "1.8", "-target", "1.8")
 javaOptions ++= Seq("-Xms512M", "-Xmx2048M", "-XX:MaxPermSize=2048M", "-XX:+CMSClassUnloadingEnabled")
 scalacOptions ++= Seq("-deprecation", "-unchecked")
