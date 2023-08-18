@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-ARG SPARK_VERSION=3.3.2
+ARG SPARK_VERSION
 
 FROM debian:11.5 as java-prerequisites
 

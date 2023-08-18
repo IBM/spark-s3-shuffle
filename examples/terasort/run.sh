@@ -25,7 +25,7 @@ SIZE=${SIZE:-1g}
 
 # Shuffle on S3
 USE_S3_SHUFFLE=${USE_S3_SHUFFLE:-1}
-CHECKSUM_ENABLED=${CHECKSUM_ENABLED:-"true"}
+CHECKSUM_ENABLED=${CHECKSUM_ENABLED:-"false"}
 
 EXTRA_CLASSPATHS='/opt/spark/jars/*'
 EXECUTOR_JAVA_OPTIONS="-Dsun.nio.PageAlignDirectMemory=true"
