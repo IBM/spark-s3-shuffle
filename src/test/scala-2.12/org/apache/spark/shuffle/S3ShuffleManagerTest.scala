@@ -243,11 +243,7 @@ class S3ShuffleManagerTest {
     .set("spark.app.id", "app-" + UUID.randomUUID())
     .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
     .set("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
-    .set("spark.hadoop.fs.s3a.access.key", sys.env("AWS_ACCESS_KEY_ID"))
-    .set("spark.hadoop.fs.s3a.secret.key", sys.env("AWS_SECRET_ACCESS_KEY"))
-    .set("spark.hadoop.fs.s3a.endpoint", sys.env("S3_ENDPOINT_URL"))
-    .set("spark.hadoop.fs.s3a.connection.ssl.enabled", sys.env("S3_ENDPOINT_USE_SSL"))
-    .set("spark.shuffle.s3.rootDir", sys.env("S3_SHUFFLE_ROOT"))
+    .set("spark.shuffle.s3.rootDir", "file:///tmp/s3-shuffle-test/")
     .set("spark.dynamicAllocation.enabled", "true")
     .set("spark.local.dir", "./spark-temp") // Configure the working dir.
     .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.S3ShuffleManager")
