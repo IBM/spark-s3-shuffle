@@ -7,14 +7,21 @@ package org.apache.spark.storage
 
 import org.apache.hadoop.io.ElasticByteBufferPool
 import org.apache.spark.SparkException
+import org.apache.spark.shuffle.helper.S3ShuffleDispatcher
 import org.apache.spark.storage.S3DoubleBufferedStream.{getBuffer, releaseBuffer}
 
 import java.io.{EOFException, InputStream}
 import java.nio.ByteBuffer
-import scala.concurrent.Future
+import java.util.concurrent.atomic.AtomicLong
+import scala.concurrent.{Future, blocking}
 import scala.util.{Failure, Success, Try}
+import scala.concurrent.ExecutionContext.Implicits.global
 
-class S3DoubleBufferedStream(stream: S3ShuffleBlockStream, bufferSize: Int) extends InputStream {
+class S3DoubleBufferedStream(stream: S3ShuffleBlockStream, bufferSize: Int,
+                             timeWaiting: AtomicLong,
+                             timePrefetching: AtomicLong,
+                             bytesRead: AtomicLong,
+                             numRequests: AtomicLong) extends InputStream {
   private var buffers: Array[ByteBuffer] = {
     val array = new Array[ByteBuffer](2)
     array(0) = getBuffer(bufferSize)
@@ -25,11 +32,11 @@ class S3DoubleBufferedStream(stream: S3ShuffleBlockStream, bufferSize: Int) exte
     })
     array
   }
-  private var prefetching = Array.fill(2)(false)
 
   var streamClosed = false
   var pos: Long = 0
   val maxBytes: Long = stream.maxBytes
+
 
   private var bufIdx: Int = 0
   var dataAvailable: Boolean = false
@@ -69,19 +76,27 @@ class S3DoubleBufferedStream(stream: S3ShuffleBlockStream, bufferSize: Int) exte
       // no data available
       return
     }
+    // Run on implicit global execution context.
     val fut = Future[Int] {
-      buffer.clear()
-      var len: Int = 0
-      do {
-        len = writeTo(buffer, stream)
-        if (len < 0) {
-          throw new EOFException()
-        }
-      } while (len == 0)
-      buffer.flip()
-      len
-    }(S3ShuffleReader.asyncExecutionContext)
-    fut.onComplete(onCompletePrefetch)(S3ShuffleReader.asyncExecutionContext)
+      blocking {
+        val now = System.nanoTime()
+        buffer.clear()
+        var len: Int = 0
+        do {
+          len = writeTo(buffer, stream, bufferSize)
+          if (len < 0) {
+            throw new EOFException()
+          }
+        } while (len == 0)
+        buffer.flip()
+
+        timePrefetching.addAndGet(System.nanoTime() - now)
+        numRequests.incrementAndGet()
+        bytesRead.addAndGet(len)
+        len
+      }
+    }
+    fut.onComplete(onCompletePrefetch)
   }
 
   private def onCompletePrefetch(result: Try[Int]): Unit = synchronized {
@@ -97,7 +112,7 @@ class S3DoubleBufferedStream(stream: S3ShuffleBlockStream, bufferSize: Int) exte
     if (eof) {
       return -1
     }
-
+    val now = System.nanoTime()
     while (error.isEmpty) {
       if (buffers == null) {
         throw new EOFException("Stream already closed")
@@ -108,6 +123,7 @@ class S3DoubleBufferedStream(stream: S3ShuffleBlockStream, bufferSize: Int) exte
         if (l < 0) {
           throw new SparkException("Invalid state in shuffle read.")
         }
+        timeWaiting.addAndGet(System.nanoTime() - now)
         pos += 1
         return l
       }
@@ -129,6 +145,7 @@ class S3DoubleBufferedStream(stream: S3ShuffleBlockStream, bufferSize: Int) exte
     if (eof) {
       return -1
     }
+    val now = System.nanoTime()
     while (error.isEmpty) {
       if (buffers == null) {
         throw new EOFException("Stream already closed")
@@ -139,6 +156,7 @@ class S3DoubleBufferedStream(stream: S3ShuffleBlockStream, bufferSize: Int) exte
         if (l < 0) {
           throw new SparkException("Invalid state in shuffle read(buf).")
         }
+        timeWaiting.addAndGet(System.nanoTime() - now)
         pos += l
         return l
       }
@@ -212,17 +230,18 @@ class S3DoubleBufferedStream(stream: S3ShuffleBlockStream, bufferSize: Int) exte
     buf.get() & 0xFF
   }
 
-  private def writeTo(buf: ByteBuffer, src: InputStream): Int = {
-    val len = src.read(buf.array(), buf.position() + buf.arrayOffset(), buf.remaining())
+  private def writeTo(buf: ByteBuffer, src: InputStream, size: Int): Int = {
+    val len = src.read(buf.array(), buf.position() + buf.arrayOffset(), math.min(buf.remaining(), size))
     buf.position(buf.position() + len)
     len
   }
 }
 
 object S3DoubleBufferedStream {
+
   private lazy val pool = new ElasticByteBufferPool()
 
-  private def getBuffer(size: Int) = pool.getBuffer(false, size)
+  private def getBuffer(size: Int): ByteBuffer = pool.getBuffer(false, size)
 
-  private def releaseBuffer(buf: ByteBuffer) = pool.putBuffer(buf)
+  private def releaseBuffer(buf: ByteBuffer): Unit = pool.putBuffer(buf)
 }

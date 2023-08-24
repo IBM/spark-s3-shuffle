@@ -34,20 +34,19 @@ class S3ShuffleDispatcher extends Logging {
   private val isS3A = rootDir.startsWith("s3a://")
 
   // Optional
-  val bufferSize: Int = conf.getInt("spark.shuffle.s3.bufferSize", defaultValue = conf.get(SHUFFLE_FILE_BUFFER_SIZE).toInt * 1024)
-  val bufferInputSize: Int = conf.getInt("spark.shuffle.s3.bufferInputSize", defaultValue = conf.get(MAX_REMOTE_BLOCK_SIZE_FETCH_TO_MEM).toInt)
+  val bufferSize: Int = conf.getInt("spark.shuffle.s3.bufferSize", defaultValue = 4 * 1024 * 1024)
   val cachePartitionLengths: Boolean = conf.getBoolean("spark.shuffle.s3.cachePartitionLengths", defaultValue = true)
   val cacheChecksums: Boolean = conf.getBoolean("spark.shuffle.s3.cacheChecksums", defaultValue = true)
   val cleanupShuffleFiles: Boolean = conf.getBoolean("spark.shuffle.s3.cleanup", defaultValue = true)
   val folderPrefixes: Int = conf.getInt("spark.shuffle.s3.folderPrefixes", defaultValue = 10)
-  val prefetchBatchSize: Int = conf.getInt("spark.shuffle.s3.prefetchBatchSize", defaultValue = 25)
-  val prefetchThreadPoolSize: Int = conf.getInt("spark.shuffle.s3.prefetchThreadPoolSize", defaultValue = 100)
   val supportsUnbuffer: Boolean = conf.getBoolean("spark.shuffle.s3.supportsUnbuffer", defaultValue = isS3A)
 
   // Debug
   val alwaysCreateIndex: Boolean = conf.getBoolean("spark.shuffle.s3.alwaysCreateIndex", defaultValue = false)
   val useBlockManager: Boolean = conf.getBoolean("spark.shuffle.s3.useBlockManager", defaultValue = true)
   val forceBatchFetch: Boolean = conf.getBoolean("spark.shuffle.s3.forceBatchFetch", defaultValue = false)
+  val minimumReadSize: Int = conf.getInt("spark.shuffle.s3.minimumReadSize", defaultValue = 1024)
+  val bufferSensitivity: Int = conf.getInt("spark.shuffle.s3.bufferSensitivity", defaultValue = 100)
 
   // Spark feature
   val checksumAlgorithm: String = SparkEnv.get.conf.get(config.SHUFFLE_CHECKSUM_ALGORITHM)
@@ -63,19 +62,18 @@ class S3ShuffleDispatcher extends Logging {
 
   // Optional
   logInfo(s"- spark.shuffle.s3.bufferSize=${bufferSize}")
-  logInfo(s"- spark.shuffle.s3.bufferInputSize=${bufferInputSize}")
   logInfo(s"- spark.shuffle.s3.cachePartitionLengths=${cachePartitionLengths}")
   logInfo(s"- spark.shuffle.s3.cacheChecksums=${cacheChecksums}")
   logInfo(s"- spark.shuffle.s3.cleanup=${cleanupShuffleFiles}")
   logInfo(s"- spark.shuffle.s3.folderPrefixes=${folderPrefixes}")
-  logInfo(s"- spark.shuffle.s3.prefetchBlockSize=${prefetchBatchSize}")
-  logInfo(s"- spark.shuffle.s3.prefetchThreadPoolSize=${prefetchThreadPoolSize}")
   logInfo(s"- spark.shuffle.s3.supportsUnbuffer=${supportsUnbuffer}")
 
   // Debug
   logInfo(s"- spark.shuffle.s3.alwaysCreateIndex=${alwaysCreateIndex} (default: false)")
   logInfo(s"- spark.shuffle.s3.useBlockManager=${useBlockManager} (default: true)")
   logInfo(s"- spark.shuffle.s3.forceBatchFetch=${forceBatchFetch} (default: false)")
+  logInfo(s"- spark.shuffle.s3.minimumReadSize=${minimumReadSize}")
+  logInfo(s"- spark.shuffle.s3.bufferSensitivity=${bufferSensitivity}")
 
   // Spark
   logInfo(s"- ${config.SHUFFLE_CHECKSUM_ALGORITHM.key}=${checksumAlgorithm}")
