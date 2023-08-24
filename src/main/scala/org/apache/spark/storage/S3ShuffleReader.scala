@@ -181,8 +181,3 @@ class S3ShuffleReader[K, C](
     }
   }
 }
-
-object S3ShuffleReader {
-  private lazy val asyncThreadPool = ThreadUtils.newDaemonCachedThreadPool("s3-shuffle-reader-async-thread-pool", S3ShuffleDispatcher.get.prefetchThreadPoolSize)
-  lazy implicit val asyncExecutionContext = ExecutionContext.fromExecutorService(asyncThreadPool)
-}

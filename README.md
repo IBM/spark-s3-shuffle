@@ -38,8 +38,7 @@ These configuration values need to be passed to Spark to load and configure the 
 
 Changing these values might have an impact on performance.
 
-- `spark.shuffle.s3.bufferSize`: Default size of the buffered output streams (default: `32768`,
-  uses `spark.shuffle.file.buffer` as default)
+- `spark.shuffle.s3.bufferSize`: The maximum buffer size (default: `262144`). Max memory consumption: `4x NUM_TASKS`.
 - `spark.shuffle.s3.cachePartitionLengths`: Cache partition lengths in memory (default: `true`)
 - `spark.shuffle.s3.cacheChecksums`: Cache checksums in memory (default: `true`)
 - `spark.shuffle.s3.cleanup`: Cleanup the shuffle files (default: `true`)
@@ -47,15 +46,14 @@ Changing these values might have an impact on performance.
   (default: `10`, minimum: `1`).
 
   **Note**: This option can be used to optimize performance on object stores which have a prefix rate-limit.
-- `spark.shuffle.s3.prefetchBatchSize`: Prefetch batch size (default: `25`). Controls how many partitions are prefetched
-  concurrently per task.
-- `spark.shuffle.s3.prefetchThreadPoolSize`: Prefetch thread pool size (default: `100`). The total size of the thread
-  pool used for prefetching the shuffle blocks.
 - `spark.shuffle.s3.supportsUnbuffer`: Streams can be unbuffered instead of closed (default: `true`,
   if Storage-backend is S3A, `false` otherwise).
 - `spark.shuffle.checksum.enabled`: Enables checksums on Shuffle files (default: `true`)
 
   **Note**: This option creates additional overhead if active. Suggested configuration: `false`.
+
+- `spark.shuffle.s3.minimumReadSize`: The minimum size used for reading from the remote storage (default: `1024`).
+- `spark.shuffle.s3.bufferSensitivity`: The sensitivity when adapting the buffer size to the RTT (default: `10`).
 
 
 ### Debug configuration options
@@ -74,6 +72,7 @@ Configuration options used for debugging:
 - `spark.shuffle.s3.forceBatchFetch`: Force batch fetch for Shuffle Blocks (default: `false`)
 
   **Note**: Can lead to invalid results.
+
 
 ## Testing
 
