@@ -53,7 +53,7 @@ Changing these values might have an impact on performance.
   **Note**: This option creates additional overhead if active. Suggested configuration: `false`.
 
 - `spark.shuffle.s3.minimumReadSize`: The minimum size used for reading from the remote storage (default: `1024`).
-- `spark.shuffle.s3.bufferSensitivity`: The sensitivity when adapting the buffer size to the RTT (default: `10`).
+- `spark.shuffle.s3.bufferSensitivity`: The sensitivity when adapting the buffer size (default: `100`).
 
 
 ### Debug configuration options

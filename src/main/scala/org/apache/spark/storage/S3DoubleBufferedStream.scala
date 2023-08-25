@@ -227,10 +227,11 @@ class S3DoubleBufferedStream(stream: S3ShuffleBlockStream, bufferSize: Int) exte
 
 object S3DoubleBufferedStream {
   private val bufferTimings = new Array[Double](100)
+  private val bufferSizes = new Array[Int](100)
+
   private var bufferSize: Int = 8192
   private var bufferPos: Int = 0
   private var bufferCount: Int = 0
-  private var weightedAverageRTT: Double = 0.0
 
   private lazy val bufferSensitivity = S3ShuffleDispatcher.get.bufferSensitivity
   private lazy val minimumReadSize = S3ShuffleDispatcher.get.minimumReadSize
@@ -241,47 +242,39 @@ object S3DoubleBufferedStream {
     }
     bufferPos = (bufferPos + 1) % bufferTimings.length
     bufferTimings(bufferPos) = ns.toDouble
+    bufferSizes(bufferPos) = bufferSize
   }
 
   /**
-   * Optimize the read size for a weighted mean of the RTT.
+   * Adaptively compute buffer size.
    */
   private def getBufferSize(): Int = synchronized {
     if (bufferCount == 0) {
       return bufferSize
     }
-    var wsum: Double = 0
-    var mean: Double = 0
-    val nTimings = bufferTimings.length
-    val nFloat: Float = nTimings.toFloat
 
-    // Compute weighted arithmetic mean of the RoundTripTime on the window.
-    for (i <- Range(0, nTimings)) {
-      val pos = (bufferPos + i) % nTimings
-      val w: Double = ((nFloat - i) / nFloat) * ((nFloat - i) / nFloat)
-      mean += bufferTimings(pos) * w
-      wsum += w
+    var minRtt = Double.MaxValue
+    var minBuf = bufferSize
+    for (i <- Range(0, bufferSizes.length)) {
+      val rtt = bufferTimings(i)
+      val buf = bufferSizes(i)
+      if (buf > 0 && rtt < minRtt) {
+        minRtt = rtt
+        minBuf = buf
+      }
     }
-    val currentWeightedRTT = mean / wsum
 
-    val buffersizePrev = bufferSize
-    // Adapt buffer size.
-    val diff = weightedAverageRTT - currentWeightedRTT
-    if (diff > bufferSensitivity) {
-      bufferSize = bufferSize - minimumReadSize
-    } else if (diff < -bufferSensitivity) {
-      bufferSize = bufferSize * 2
-    } 
-    // else if (diff.abs > Double.MinPositiveValue && currentWeightedRTT > bufferSensitivity) {
-      // bufferSize += minimumReadSize
-    // }
-
-    weightedAverageRTT = currentWeightedRTT
+    val currentRtt = bufferTimings(bufferPos)
+    if ((minRtt - currentRtt).abs > S3ShuffleDispatcher.get.bufferSensitivity) {
+      if (minBuf >= bufferSize) {
+        bufferSize *= 2
+      } else {
+        bufferSize -= minimumReadSize
+      }
+    } else {
+      bufferSize -= minimumReadSize
+    }
     bufferSize = math.min(math.max(bufferSize, minimumReadSize), S3ShuffleDispatcher.get.bufferSize)
-
-    if (bufferSize != buffersizePrev) {
-      println(s"New buffer size: ${bufferSize} (diff: ${diff} rtt: ${weightedAverageRTT})")
-    }
     bufferSize
   }
 
