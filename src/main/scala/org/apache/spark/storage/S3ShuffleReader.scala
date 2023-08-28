@@ -30,12 +30,12 @@ import org.apache.spark.shuffle.{BaseShuffleHandle, ShuffleReadMetricsReporter, 
 import org.apache.spark.storage.ShuffleBlockFetcherIterator.FetchBlockInfo
 import org.apache.spark.util.{CompletionIterator, ThreadUtils}
 import org.apache.spark.util.collection.ExternalSorter
-import org.apache.spark.{InterruptibleIterator, SparkConf, SparkEnv, SparkException, TaskContext}
+import org.apache.spark.{InterruptibleIterator, SparkConf, SparkEnv, TaskContext}
 
-import java.io.{BufferedInputStream, InputStream}
-import java.util.zip.{CheckedInputStream, Checksum}
+import java.io.{BufferedInputStream}
 import scala.concurrent.duration.Duration
-import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.concurrent.{Await, Future}
+import scala.concurrent.ExecutionContext.Implicits.global
 
 /**
  * This class was adapted from Apache Spark: BlockStoreShuffleReader.
@@ -54,8 +54,8 @@ class S3ShuffleReader[K, C](
                            ) extends ShuffleReader[K, C] with Logging {
 
   private val dispatcher = S3ShuffleDispatcher.get
+  private val bufferSize = dispatcher.bufferSize
   private val dep = handle.dependency
-  private val bufferInputSize = dispatcher.bufferInputSize
 
   private val fetchContinousBlocksInBatch: Boolean = {
     val serializerRelocatable = dep.serializer.supportsRelocationOfSerializedObjects
@@ -99,34 +99,37 @@ class S3ShuffleReader[K, C](
     val wrappedStreams = new S3ShuffleBlockIterator(blocks)
 
     // Create a key/value iterator for each stream
-    val recordIterPromise = wrappedStreams.filterNot(_._2.maxBytes == 0).map { case (blockId, wrappedStream) =>
+    val bufferedFileIterPromise = wrappedStreams.filterNot(_._2.maxBytes == 0).map { case (blockId, wrappedStream) =>
       readMetrics.incRemoteBytesRead(wrappedStream.maxBytes) // increase byte count.
       readMetrics.incRemoteBlocksFetched(1)
       // Note: the asKeyValueIterator below wraps a key/value iterator inside of a
       // NextIterator. The NextIterator makes sure that close() is called on the
       // underlying InputStream when all records have been read.
       Future {
-        val bufferSize = scala.math.min(wrappedStream.maxBytes, bufferInputSize).toInt
-        val stream = new BufferedInputStream(wrappedStream, bufferSize)
+        val bs = scala.math.min(wrappedStream.maxBytes, bufferSize).toInt
+        val stream = new BufferedInputStream(wrappedStream, bs)
 
         // Fill the buffered input stream by reading and then resetting the stream.
-        stream.mark(bufferSize)
+        stream.mark(bs)
         stream.read()
         stream.reset()
 
-        val checkedStream = if (dispatcher.checksumEnabled) {
-          new S3ChecksumValidationStream(blockId, stream, dispatcher.checksumAlgorithm)
+        (blockId, stream)
+      }
+    }
+
+    val recordIter = slidingPrefetchIterator(bufferedFileIterPromise, dispatcher.filesPrefetching).flatMap {
+      case (blockId, bufferedStream) =>
+        val stream = if (dispatcher.checksumEnabled) {
+          new S3ChecksumValidationStream(blockId, bufferedStream, dispatcher.checksumAlgorithm)
         } else {
-          stream
+          bufferedStream
         }
 
         serializerInstance
-          .deserializeStream(serializerManager.wrapStream(blockId, checkedStream))
+          .deserializeStream(serializerManager.wrapStream(blockId, stream))
           .asKeyValueIterator
-      }(S3ShuffleReader.asyncExecutionContext)
     }
-
-    val recordIter = slidingPrefetchIterator(recordIterPromise, dispatcher.prefetchBatchSize).flatten
 
     // Update the context task metrics for each record read.
     val metricIter = CompletionIterator[(Any, Any), Iterator[(Any, Any)]](
@@ -200,9 +203,4 @@ class S3ShuffleReader[K, C](
       }
     }
   }
-}
-
-object S3ShuffleReader {
-  private lazy val asyncThreadPool = ThreadUtils.newDaemonCachedThreadPool("s3-shuffle-reader-async-thread-pool", S3ShuffleDispatcher.get.prefetchThreadPoolSize)
-  private lazy implicit val asyncExecutionContext = ExecutionContext.fromExecutorService(asyncThreadPool)
 }
