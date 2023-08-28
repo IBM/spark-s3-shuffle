@@ -32,7 +32,8 @@ import org.apache.spark.util.{CompletionIterator, ThreadUtils}
 import org.apache.spark.util.collection.ExternalSorter
 import org.apache.spark.{InterruptibleIterator, SparkConf, SparkEnv, TaskContext}
 
-import java.io.{BufferedInputStream}
+import java.io.BufferedInputStream
+import java.util.concurrent.atomic.AtomicLong
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -96,6 +97,11 @@ class S3ShuffleReader[K, C](
                                       doBatchFetch = fetchContinousBlocksInBatch,
                                       useBlockManager = dispatcher.useBlockManager)
 
+    val timeReading = new AtomicLong(0)
+    val timeWaiting = new AtomicLong(0)
+    val numFiles = new AtomicLong(0)
+    val numBytes = new AtomicLong(0)
+
     val wrappedStreams = new S3ShuffleBlockIterator(blocks)
 
     // Create a key/value iterator for each stream
@@ -106,6 +112,7 @@ class S3ShuffleReader[K, C](
       // NextIterator. The NextIterator makes sure that close() is called on the
       // underlying InputStream when all records have been read.
       Future {
+        val now = System.nanoTime()
         val bs = scala.math.min(wrappedStream.maxBytes, bufferSize).toInt
         val stream = new BufferedInputStream(wrappedStream, bs)
 
@@ -114,11 +121,26 @@ class S3ShuffleReader[K, C](
         stream.read()
         stream.reset()
 
+        timeReading.getAndAdd(System.nanoTime() - now)
+        numBytes.getAndAdd(wrappedStream.maxBytes)
         (blockId, stream)
       }
     }
 
-    val recordIter = slidingPrefetchIterator(bufferedFileIterPromise, dispatcher.filesPrefetching).flatMap {
+    val prefetchIter = slidingPrefetchIterator(bufferedFileIterPromise, dispatcher.filesPrefetching)
+    val timerIterator = new TimerIterator(prefetchIter,
+                                          (time) => {
+                                            timeWaiting.getAndAdd(time)
+                                            numFiles.getAndIncrement()
+                                          }, () => {
+        val tW = timeWaiting.get() / 1000000
+        val tR = timeReading.get() / 1000000
+        val n = numBytes.get()
+        val bW = n.toDouble / (tR.toDouble / 1000) / (1024 * 1024)
+        logInfo(s"S3ShuffleReader statistics: ${n} bytes read, ${tW} ms time waiting, ${tR} ms time reading (${bW} MiB/s")
+      })
+
+    val recordIter = timerIterator.flatMap {
       case (blockId, bufferedStream) =>
         val stream = if (dispatcher.checksumEnabled) {
           new S3ChecksumValidationStream(blockId, bufferedStream, dispatcher.checksumAlgorithm)
