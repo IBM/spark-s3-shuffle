@@ -39,6 +39,10 @@ jobs:
         distribution: temurin
         java-version: 11
         cache: sbt
+    - name: Test
+      shell: bash
+      run: |
+        sbt test
     - name: Package
       shell: bash
       run: |
