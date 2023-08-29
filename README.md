@@ -35,10 +35,8 @@ These configuration values need to be passed to Spark to load and configure the 
 
 Changing these values might have an impact on performance. 
 
-- `spark.shuffle.s3.bufferSize`: Default size of the buffered output streams (default: `32768`,
-  uses `spark.shuffle.file.buffer` as default)
-- `spark.shuffle.s3.bufferInputSize`: Maximum size of buffered input streams (default: `209715200`,
-  uses `spark.network.maxRemoteBlockSizeFetchToMem` as default)
+- `spark.shuffle.s3.bufferSize`: Default buffer size when writing (default: `8388608`)
+- `spark.shuffle.s3.maxBufferSizeTask`: Maximum size of the buffered output streams per task (default: `134217728`)
 - `spark.shuffle.s3.cleanup`: Cleanup the shuffle files (default: `true`)
 - `spark.shuffle.s3.folderPrefixes`: The number of prefixes to use when storing files on S3
   (default: `10`, minimum: `1`).
