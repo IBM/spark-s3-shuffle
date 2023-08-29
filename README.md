@@ -79,14 +79,25 @@ Configuration options used for debugging:
 
 ## Testing
 
-The tests require the following environment variables to be set:
+The tests store the shuffle data in `/tmp/spark-s3-shuffle`. The following configuration options need to be passed
+to Java > 11:
 
-- `AWS_ACCESS_KEY_ID`: Access key to use for the S3 Shuffle service.
-- `AWS_SECRET_ACCESS_KEY`: Secret key to use for the S3 Shuffle service.
-- `S3_ENDPOINT_URL`: Endpoint URL of the S3 Service (e.g. `http://10.40.0.29:9000` or
-  `https://s3.direct.us-south.cloud-object-storage.appdomain.cloud`).
-- `S3_ENDPOINT_USE_SSL`: Whether the endpoint supports SSL or not.
-- `S3_SHUFFLE_ROOT`: The shuffle root (e.g `s3a://zrlio-tmp/`)
+```bash
+  --add-opens=java.base/java.lang=ALL-UNNAMED
+  --add-opens=java.base/java.lang.invoke=ALL-UNNAMED
+  --add-opens=java.base/java.lang.reflect=ALL-UNNAMED
+  --add-opens=java.base/java.io=ALL-UNNAMED
+  --add-opens=java.base/java.net=ALL-UNNAMED
+  --add-opens=java.base/java.nio=ALL-UNNAMED
+  --add-opens=java.base/java.util=ALL-UNNAMED 
+  --add-opens=java.base/java.util.concurrent=ALL-UNNAMED 
+  --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED 
+  --add-opens=java.base/sun.nio.ch=ALL-UNNAMED 
+  --add-opens=java.base/sun.nio.cs=ALL-UNNAMED 
+  --add-opens=java.base/sun.security.action=ALL-UNNAMED -
+  -add-opens=java.base/sun.util.calendar=ALL-UNNAMED 
+  --add-opens=java.security.jgss/sun.security.krb5=ALL-UNNAMED 
+```
 
 ## Usage
 
