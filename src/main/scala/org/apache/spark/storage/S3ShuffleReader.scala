@@ -89,7 +89,7 @@ class S3ShuffleReader[K, C](
       readMetrics.incRemoteBlocksFetched(1)
       f
     })
-    val recordIter = new S3BufferedPrefetchIterator(new PrefetchIterator(filteredStream), maxBufferSizeTask)
+    val recordIter = new S3BufferedPrefetchIterator(new AsyncPrefetchIterator(filteredStream), maxBufferSizeTask)
       .flatMap(s => {
         val stream = s._2
         val blockId = s._1
