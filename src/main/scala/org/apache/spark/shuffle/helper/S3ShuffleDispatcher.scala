@@ -59,8 +59,10 @@ class S3ShuffleDispatcher extends Logging {
     SparkHadoopUtil.newConfiguration(conf)
   })
 
+  val canSetReadahead = fs.hasPathCapability(new Path(rootDir), StreamCapabilities.READAHEAD)
+
   // Required
-  logInfo(s"- spark.shuffle.s3.rootDir=${rootDir} (app dir: ${appDir})")
+  logInfo(s"- spark.shuffle.s3.rootDir=${rootDir} (app dir: ${appDir} - can set readahead: ${canSetReadahead})")
 
   // Optional
   logInfo(s"- spark.shuffle.s3.bufferSize=${bufferSize}")
@@ -117,8 +119,13 @@ class S3ShuffleDispatcher extends Logging {
    * @return
    */
   def openBlock(blockId: BlockId): FSDataInputStream = {
-    val builder = fs.openFile(getPath(blockId)).withFileStatus(getFileStatusCached(blockId))
-    builder.build().get()
+    val status = getFileStatusCached(blockId)
+    val builder = fs.openFile(status.getPath).withFileStatus(status)
+    val stream  = builder.build().get()
+    if (canSetReadahead) {
+      stream.setReadahead(0)
+    }
+    stream
   }
 
   private val cachedFileStatus = new ConcurrentObjectMap[BlockId, FileStatus]()
