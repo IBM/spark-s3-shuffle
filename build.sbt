@@ -38,7 +38,8 @@ libraryDependencies ++= (if (scalaBinaryVersion.value == "2.12") Seq(
   "ch.cern.sparkmeasure" %% "spark-measure" % "0.18" % Test,
   "org.scalacheck" %% "scalacheck" % "1.15.2" % Test,
   "org.mockito" % "mockito-core" % "3.4.6" % Test,
-  "org.scalatestplus" %% "mockito-3-4" % "3.2.9.0" % Test
+  "org.scalatestplus" %% "mockito-3-4" % "3.2.9.0" % Test,
+  "com.github.sbt" % "junit-interface" % "0.13.3" % Test
   )
 else Seq())
 
