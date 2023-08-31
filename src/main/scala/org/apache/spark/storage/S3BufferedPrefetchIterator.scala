@@ -40,7 +40,6 @@ class S3BufferedPrefetchIterator(iter: Iterator[(BlockId, S3ShuffleBlockStream)]
           }
           catch {
             case _: InterruptedException =>
-              Thread.currentThread.interrupt()
           }
         } else {
           fetchNext = true
@@ -63,7 +62,7 @@ class S3BufferedPrefetchIterator(iter: Iterator[(BlockId, S3ShuffleBlockStream)]
           memoryUsage += bsize
           completed.push((stream, block, bsize))
           hasItem = iter.hasNext
-          notifyAll()
+          notify()
         }
       }
     }
@@ -117,7 +116,6 @@ class S3BufferedPrefetchIterator(iter: Iterator[(BlockId, S3ShuffleBlockStream)]
         wait()
       } catch {
         case _: InterruptedException =>
-          Thread.currentThread.interrupt()
       }
     }
     timeWaiting += System.nanoTime() - now
