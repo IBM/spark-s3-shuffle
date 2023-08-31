@@ -53,8 +53,6 @@ Changing these values might have an impact on performance.
   concurrently per task.
 - `spark.shuffle.s3.prefetchThreadPoolSize`: Prefetch thread pool size (default: `100`). The total size of the thread
   pool used for prefetching the shuffle blocks.
-- `spark.shuffle.s3.supportsUnbuffer`: Streams can be unbuffered instead of closed (default: `true`,
-  if Storage-backend is S3A, `false` otherwise).
 - `spark.shuffle.checksum.enabled`: Enables checksums on Shuffle files (default: `true`)
 
   **Note**: This option creates additional overhead if active. Suggested configuration: `false`.
