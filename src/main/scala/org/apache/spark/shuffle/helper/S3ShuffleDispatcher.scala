@@ -42,8 +42,6 @@ class S3ShuffleDispatcher extends Logging {
   val cacheChecksums: Boolean = conf.getBoolean("spark.shuffle.s3.cacheChecksums", defaultValue = true)
   val cleanupShuffleFiles: Boolean = conf.getBoolean("spark.shuffle.s3.cleanup", defaultValue = true)
   val folderPrefixes: Int = conf.getInt("spark.shuffle.s3.folderPrefixes", defaultValue = 10)
-  val prefetchBatchSize: Int = conf.getInt("spark.shuffle.s3.prefetchBatchSize", defaultValue = 25)
-  val prefetchThreadPoolSize: Int = conf.getInt("spark.shuffle.s3.prefetchThreadPoolSize", defaultValue = 100)
 
   // Debug
   val alwaysCreateIndex: Boolean = conf.getBoolean("spark.shuffle.s3.alwaysCreateIndex", defaultValue = false)
@@ -71,8 +69,6 @@ class S3ShuffleDispatcher extends Logging {
   logInfo(s"- spark.shuffle.s3.cacheChecksums=${cacheChecksums}")
   logInfo(s"- spark.shuffle.s3.cleanup=${cleanupShuffleFiles}")
   logInfo(s"- spark.shuffle.s3.folderPrefixes=${folderPrefixes}")
-  logInfo(s"- spark.shuffle.s3.prefetchBlockSize=${prefetchBatchSize}")
-  logInfo(s"- spark.shuffle.s3.prefetchThreadPoolSize=${prefetchThreadPoolSize}")
 
   // Debug
   logInfo(s"- spark.shuffle.s3.alwaysCreateIndex=${alwaysCreateIndex} (default: false)")

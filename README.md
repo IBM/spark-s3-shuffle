@@ -47,10 +47,6 @@ Changing these values might have an impact on performance.
   (default: `10`, minimum: `1`).
 
   **Note**: This option can be used to optimize performance on object stores which have a prefix rate-limit.
-- `spark.shuffle.s3.prefetchBatchSize`: Prefetch batch size (default: `25`). Controls how many partitions are prefetched
-  concurrently per task.
-- `spark.shuffle.s3.prefetchThreadPoolSize`: Prefetch thread pool size (default: `100`). The total size of the thread
-  pool used for prefetching the shuffle blocks.
 - `spark.shuffle.checksum.enabled`: Enables checksums on Shuffle files (default: `true`)
 
   **Note**: This option creates additional overhead if active. Suggested configuration: `false`.
