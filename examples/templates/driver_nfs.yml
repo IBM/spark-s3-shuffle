@@ -19,5 +19,5 @@ spec:
   volumes:
   - name: nfs
     nfs:
-      server: NFS_SERVER
-      path: /raw/shuffle
+      server: 10.40.0.4
+      path: /shuffle
