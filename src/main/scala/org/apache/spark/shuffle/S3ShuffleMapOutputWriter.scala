@@ -8,7 +8,6 @@ package org.apache.spark.shuffle
 import org.apache.hadoop.fs.FSDataOutputStream
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
-import org.apache.spark.internal.config.SHUFFLE_FILE_BUFFER_SIZE
 import org.apache.spark.shuffle.IndexShuffleBlockResolver.NOOP_REDUCE_ID
 import org.apache.spark.shuffle.api.metadata.MapOutputCommitMessage
 import org.apache.spark.shuffle.api.{ShuffleMapOutputWriter, ShufflePartitionWriter, WritableByteChannelWrapper}

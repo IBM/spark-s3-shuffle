@@ -6,9 +6,7 @@
 package org.apache.spark.shuffle.helper
 
 import org.apache.hadoop.fs._
-import org.apache.hadoop.fs.impl.OpenFileParameters
 import org.apache.spark.deploy.SparkHadoopUtil
-import org.apache.spark.internal.config.{MAX_REMOTE_BLOCK_SIZE_FETCH_TO_MEM, SHUFFLE_FILE_BUFFER_SIZE}
 import org.apache.spark.internal.{Logging, config}
 import org.apache.spark.shuffle.ConcurrentObjectMap
 import org.apache.spark.storage._
@@ -16,7 +14,6 @@ import org.apache.spark.{SparkConf, SparkEnv}
 
 import java.io.IOException
 import java.net.URI
-import java.util.concurrent.CompletableFuture
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
@@ -32,8 +29,6 @@ class S3ShuffleDispatcher extends Logging {
 
   // Required
   val rootDir = conf.get("spark.shuffle.s3.rootDir", defaultValue = "sparkS3shuffle")
-  private val isCOS = rootDir.startsWith("cos://")
-  private val isS3A = rootDir.startsWith("s3a://")
 
   // Optional
   val bufferSize: Int = conf.getInt("spark.shuffle.s3.bufferSize", defaultValue = 8 * 1024 * 1024)

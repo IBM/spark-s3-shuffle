@@ -10,7 +10,7 @@ import org.apache.spark.shuffle.helper.{S3ShuffleDispatcher, S3ShuffleHelper}
 import org.apache.spark.storage.ShuffleDataBlockId
 import org.apache.spark.util.Utils
 
-import java.io.{BufferedOutputStream, File, FileInputStream}
+import java.io.{File, FileInputStream}
 
 class S3SingleSpillShuffleMapOutputWriter(shuffleId: Int, mapId: Long) extends SingleSpillShuffleMapOutputWriter {
 

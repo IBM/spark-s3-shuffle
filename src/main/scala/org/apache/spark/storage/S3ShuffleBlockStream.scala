@@ -9,7 +9,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.shuffle.IndexShuffleBlockResolver.NOOP_REDUCE_ID
 import org.apache.spark.shuffle.helper.S3ShuffleDispatcher
 
-import java.io.{EOFException, IOException, InputStream}
+import java.io.{IOException, InputStream}
 
 /**
  * InputStream that reads data from a shuffleBlock, mapId and exposes an InputStream from startReduceId to endReduceId.

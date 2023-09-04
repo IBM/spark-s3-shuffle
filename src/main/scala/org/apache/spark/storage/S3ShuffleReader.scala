@@ -28,11 +28,9 @@ import org.apache.spark.serializer.SerializerManager
 import org.apache.spark.shuffle.helper.{S3ShuffleDispatcher, S3ShuffleHelper}
 import org.apache.spark.shuffle.{BaseShuffleHandle, ShuffleReadMetricsReporter, ShuffleReader}
 import org.apache.spark.storage.ShuffleBlockFetcherIterator.FetchBlockInfo
-import org.apache.spark.util.{CompletionIterator, ThreadUtils}
+import org.apache.spark.util.CompletionIterator
 import org.apache.spark.util.collection.ExternalSorter
 import org.apache.spark.{InterruptibleIterator, SparkConf, SparkEnv, TaskContext}
-
-import scala.concurrent.ExecutionContext
 
 /**
  * This class was adapted from Apache Spark: BlockStoreShuffleReader.
@@ -175,9 +173,4 @@ class S3ShuffleReader[K, C](
       }
     }
   }
-}
-
-object S3ShuffleReader {
-  private lazy val asyncThreadPool = ThreadUtils.newDaemonCachedThreadPool("s3-shuffle-reader-async-thread-pool", S3ShuffleDispatcher.get.prefetchThreadPoolSize)
-  private lazy implicit val asyncExecutionContext = ExecutionContext.fromExecutorService(asyncThreadPool)
 }
