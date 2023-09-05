@@ -56,7 +56,7 @@ object S3ShuffleHelper extends Logging {
   def writeArrayAsBlock(blockId: BlockId, array: Array[Long]): Unit = {
     val serializerInstance = serializer.newInstance()
     val buffer = serializerInstance.serialize[Array[Long]](array)
-    val file = new BufferedOutputStream(dispatcher.createBlock(blockId), dispatcher.bufferSize)
+    val file = dispatcher.createBlock(blockId)
     file.write(buffer.array(), buffer.arrayOffset(), buffer.limit())
     file.flush()
     file.close()
@@ -132,11 +132,13 @@ object S3ShuffleHelper extends Logging {
   }
 
   private def readBlockAsArray(blockId: BlockId) = {
-    val file = new BufferedInputStream(dispatcher.openBlock(blockId), dispatcher.bufferSize)
-    var buffer = new Array[Byte](1024)
+    val stat = dispatcher.getFileStatusCached(blockId)
+    val fsize = scala.math.min(stat.getLen.toInt, dispatcher.bufferSize)
+    val file = new BufferedInputStream(dispatcher.openBlock(blockId), fsize)
+    var buffer = new Array[Byte](fsize)
     var numBytes = 0
     var done = false
-    do {
+    while (!done) {
       val c = file.read(buffer, numBytes, buffer.length - numBytes)
       if (c >= 0) {
         numBytes += c
@@ -146,7 +148,7 @@ object S3ShuffleHelper extends Logging {
       } else {
         done = true
       }
-    } while (!done)
+    }
     val serializerInstance = serializer.newInstance()
     try {
       val result = serializerInstance.deserialize[Array[Long]](ByteBuffer.wrap(buffer, 0, numBytes))

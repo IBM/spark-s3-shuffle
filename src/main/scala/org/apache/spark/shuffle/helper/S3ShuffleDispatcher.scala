@@ -121,7 +121,7 @@ class S3ShuffleDispatcher extends Logging {
 
   private val cachedFileStatus = new ConcurrentObjectMap[BlockId, FileStatus]()
 
-  private def getFileStatusCached(blockId: BlockId): FileStatus = {
+  def getFileStatusCached(blockId: BlockId): FileStatus = {
     cachedFileStatus.getOrElsePut(blockId, (value: BlockId) => {
       fs.getFileStatus(getPath(value))
     })
