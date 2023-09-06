@@ -6,35 +6,46 @@
 package org.apache.spark.storage
 
 import org.apache.spark.internal.Logging
+import org.apache.spark.shuffle.helper.S3ShuffleDispatcher
 
 import java.io.{BufferedInputStream, InputStream}
 import java.util
 
 class S3BufferedPrefetchIterator(iter: Iterator[(BlockId, S3ShuffleBlockStream)], maxBufferSize: Long) extends Iterator[(BlockId, InputStream)] with Logging {
+
+  private val concurrencyTask = S3ShuffleDispatcher.get.prefetchConcurrencyTask
+  private val startTime = System.nanoTime()
+
   @volatile private var memoryUsage: Long = 0
   @volatile private var hasItem: Boolean = iter.hasNext
   private var timeWaiting: Long = 0
   private var timePrefetching: Long = 0
-  private var timeNext: Long = 0
   private var numStreams: Long = 0
   private var bytesRead: Long = 0
 
-  private var nextElement: (BlockId, S3ShuffleBlockStream) = null
+  private var activeTasks: Long = 0
 
   private val completed = new util.LinkedList[(InputStream, BlockId, Long)]()
 
   private def prefetchThread(): Unit = {
-    while (iter.hasNext || nextElement != null) {
-      if (nextElement == null) {
-        val now = System.nanoTime()
-        nextElement = iter.next()
-        timeNext = System.nanoTime() - now
+    var nextElement: (BlockId, S3ShuffleBlockStream) = null
+    while (true) {
+      synchronized {
+        if (!iter.hasNext && nextElement == null) {
+          hasItem = false
+          return
+        }
+        if (nextElement == null) {
+          nextElement = iter.next()
+          activeTasks += 1
+          hasItem = iter.hasNext
+        }
       }
-      val bsize = scala.math.min(maxBufferSize, nextElement._2.maxBytes).toInt
 
       var fetchNext = false
+      val bsize = scala.math.min(maxBufferSize, nextElement._2.maxBytes).toInt
       synchronized {
-        if (memoryUsage + math.min(bsize, maxBufferSize) > maxBufferSize) {
+        if (memoryUsage + bsize > maxBufferSize) {
           try {
             wait()
           }
@@ -43,6 +54,7 @@ class S3BufferedPrefetchIterator(iter: Iterator[(BlockId, S3ShuffleBlockStream)]
           }
         } else {
           fetchNext = true
+          memoryUsage += bsize
         }
       }
 
@@ -59,50 +71,49 @@ class S3BufferedPrefetchIterator(iter: Iterator[(BlockId, S3ShuffleBlockStream)]
         timePrefetching += System.nanoTime() - now
         bytesRead += bsize
         synchronized {
-          memoryUsage += bsize
           completed.push((stream, block, bsize))
-          hasItem = iter.hasNext
-          notify()
+          activeTasks -= 1
+          notifyAll()
         }
       }
     }
   }
 
   private val self = this
-  private val thread = new Thread {
+  private val threads = Array.fill[Thread](concurrencyTask)(new Thread {
     override def run(): Unit = {
       self.prefetchThread()
     }
-  }
-  thread.start()
+  })
+  threads.foreach(_.start())
 
   private def printStatistics(): Unit = synchronized {
+    val totalRuntime = System.nanoTime() - startTime
     try {
+      val tR = totalRuntime / 1000000
+      val wPer = 100 * timeWaiting / totalRuntime
       val tW = timeWaiting / 1000000
       val tP = timePrefetching / 1000000
-      val tN = timeNext / 1000000
       val bR = bytesRead
       val r = numStreams
       // Average time per prefetch
       val atP = tP / r
       // Average time waiting
       val atW = tW / r
-      // Average time next
-      val atN = tN / r
       // Average read bandwidth
       val bW = bR.toDouble / (tP.toDouble / 1000) / (1024 * 1024)
       // Block size
       val bs = bR / r
       logInfo(s"Statistics: ${bR} bytes, ${tW} ms waiting (${atW} avg), " +
-                s"${tP} ms prefetching (avg: ${atP} ms - ${bs} block size - ${bW} MiB/s) " +
-                s"${tN} ms for next (${atN} avg)")
+                s"${tP} ms prefetching (avg: ${atP} ms - ${bs} block size - ${bW} MiB/s). " +
+                s"Total: ${tR} ms - ${wPer}% waiting")
     } catch {
       case e: Exception => logError(f"Unable to print statistics: ${e.getMessage}.")
     }
   }
 
   override def hasNext: Boolean = synchronized {
-    val result = hasItem || (completed.size() > 0)
+    val result = hasItem || activeTasks > 0 || (completed.size() > 0)
     if (!result) {
       printStatistics()
     }
