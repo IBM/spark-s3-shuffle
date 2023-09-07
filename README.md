@@ -40,7 +40,7 @@ Changing these values might have an impact on performance.
 
 - `spark.shuffle.s3.bufferSize`: Default buffer size when writing (default: `8388608`)
 - `spark.shuffle.s3.maxBufferSizeTask`: Maximum size of the buffered output streams per task (default: `134217728`)
-- `spark.shuffle.s3.prefetchConcurrencyTask`: The per-task concurrency when prefetching (default: `2`).
+- `spark.shuffle.s3.maxConcurrencyTask`: Maximum per task concurrency. Computed by analysing the IO latencies (default: `25`).
 - `spark.shuffle.s3.cachePartitionLengths`: Cache partition lengths in memory (default: `true`)
 - `spark.shuffle.s3.cacheChecksums`: Cache checksums in memory (default: `true`)
 - `spark.shuffle.s3.cleanup`: Cleanup the shuffle files (default: `true`)

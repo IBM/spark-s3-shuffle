@@ -33,7 +33,7 @@ class S3ShuffleDispatcher extends Logging {
   // Optional
   val bufferSize: Int = conf.getInt("spark.shuffle.s3.bufferSize", defaultValue = 8 * 1024 * 1024)
   val maxBufferSizeTask: Int = conf.getInt("spark.shuffle.s3.maxBufferSizeTask", defaultValue = 128 * 1024 * 1024)
-  val prefetchConcurrencyTask: Int = conf.getInt("spark.shuffle.s3.prefetchConcurrencyTask", defaultValue = 2)
+  val maxConcurrencyTask: Int = conf.getInt("spark.shuffle.s3.maxConcurrencyTask", defaultValue = 5)
   val cachePartitionLengths: Boolean = conf.getBoolean("spark.shuffle.s3.cachePartitionLengths", defaultValue = true)
   val cacheChecksums: Boolean = conf.getBoolean("spark.shuffle.s3.cacheChecksums", defaultValue = true)
   val cleanupShuffleFiles: Boolean = conf.getBoolean("spark.shuffle.s3.cleanup", defaultValue = true)
@@ -61,7 +61,7 @@ class S3ShuffleDispatcher extends Logging {
   // Optional
   logInfo(s"- spark.shuffle.s3.bufferSize=${bufferSize}")
   logInfo(s"- spark.shuffle.s3.maxBufferSizeTask=${maxBufferSizeTask}")
-  logInfo(s"- spark.shuffle.s3.prefetchConcurrencyTask=${prefetchConcurrencyTask}")
+  logInfo(s"- spark.shuffle.s3.maxConcurrencyTask=${maxConcurrencyTask}")
   logInfo(s"- spark.shuffle.s3.cachePartitionLengths=${cachePartitionLengths}")
   logInfo(s"- spark.shuffle.s3.cacheChecksums=${cacheChecksums}")
   logInfo(s"- spark.shuffle.s3.cleanup=${cleanupShuffleFiles}")
