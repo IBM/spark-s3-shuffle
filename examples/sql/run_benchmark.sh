@@ -21,7 +21,7 @@ DRIVER_MEM=${DRIVER_MEM:-13000M}
 DRIVER_MEMORY_OVERHEAD=${DRIVER_MEMORY_OVERHEAD:-3000M}
 EXECUTOR_CPU=${EXECUTOR_CPU:-4}
 EXECUTOR_MEM=${EXECUTOR_MEM:-13000M}
-EXECUTOR_MEMORY_OVERHEAD=${EXECUTOR_MEMORY_OVERHEAD:-3000M}
+EXECUTOR_MEMORY_OVERHEAD=${EXECUTOR_MEMORY_OVERHEAD:-19000M} # 16G is allocated for spark.kubernetes.local.dirs.tmpfs
 INSTANCES=${INSTANCES:-4}
 
 CHECKSUM_ENABLED=${CHECKSUM_ENABLED:-"true"}
@@ -102,6 +102,7 @@ ${SPARK_HOME}/bin/spark-submit \
     --conf spark.ui.prometheus.enabled=true \
     --conf spark.network.timeout=10000 \
     --conf spark.executor.heartbeatInterval=20000 \
+    --conf spark.kubernetes.local.dirs.tmpfs=true \
     --conf spark.kubernetes.appKillPodDeletionGracePeriod=5 \
     --conf spark.kubernetes.container.image.pullSecrets=${KUBERNETES_PULL_SECRETS_NAME} \
     --conf spark.kubernetes.authenticate.driver.serviceAccountName=${KUBERNETES_SERVICE_ACCOUNT} \

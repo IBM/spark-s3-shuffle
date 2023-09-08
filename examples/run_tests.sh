@@ -27,7 +27,8 @@ do
    for i in {0..3}
    do
        export SIZE=$size
-       ./terasort/run.sh
+       ./terasort/run.sh || true
+       mc rm -r --force zac/zrlio-tmp
    done
 done
 
@@ -44,6 +45,6 @@ SQL_QUERIES=(
 for i in {0..3}
 do
     for query in "${SQL_QUERIES[@]}"; do
-        ./sql/run_single_query.sh $query
+        ./sql/run_single_query.sh $query || true
     done
 done
