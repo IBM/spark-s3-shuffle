@@ -47,7 +47,7 @@ SPARK_HADOOP_S3A_CONFIG=(
     --conf spark.hadoop.fs.s3a.endpoint=${S3A_ENDPOINT}
     --conf spark.hadoop.fs.s3a.path.style.access=true
     --conf spark.hadoop.fs.s3a.fast.upload=true
-    --conf spark.hadoop.fs.s3a.block.size=$((32*1024*1024))
+    --conf spark.hadoop.fs.s3a.block.size=$((128*1024*1024))
 )
 
 SPARK_S3_SHUFFLE_CONFIG=(
@@ -75,6 +75,7 @@ if (( "$USE_NFS_SHUFFLE" == 1 )); then
         --conf spark.shuffle.s3.rootDir=file:///nfs/
         --conf spark.kubernetes.executor.podTemplateFile=${SCRIPT_DIR}/../templates/executor_nfs.yml
         --conf spark.kubernetes.driver.podTemplateFile=${SCRIPT_DIR}/../templates/driver_nfs.yml
+        --conf spark.hadoop.fs.file.block.size=$((128*1024*1024))
     )
 fi
 
