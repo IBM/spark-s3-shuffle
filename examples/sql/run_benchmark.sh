@@ -86,6 +86,12 @@ if (( "${USE_PROFILER}" == 1 )); then
     EXECUTOR_JAVA_OPTIONS="${EXECUTOR_JAVA_OPTIONS} -javaagent:/opt/spark/jars/jvm-profiler-1.0.0.jar=${PROFILER_CONFIG}"
 fi
 
+JAVA_DEBUG=${JAVA_DEBUG:-0}
+if (( "${JAVA_DEBUG}" == 1 )); then
+    DRIVER_JAVA_OPTIONS="${DRIVER_JAVA_OPTIONS} -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005"
+    EXECUTOR_JAVA_OPTIONS="${EXECUTOR_JAVA_OPTIONS} -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005"
+fi
+
 ${SPARK_HOME}/bin/spark-submit \
     --master k8s://$KUBERNETES_SERVER \
     --deploy-mode cluster \
