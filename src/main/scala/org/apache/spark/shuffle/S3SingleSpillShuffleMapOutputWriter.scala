@@ -22,7 +22,8 @@ class S3SingleSpillShuffleMapOutputWriter(shuffleId: Int, mapId: Long) extends S
                                      checksums: Array[Long]
                                    ): Unit = {
     val in = new FileInputStream(mapSpillFile)
-    val out = dispatcher.createBlock(ShuffleDataBlockId(shuffleId, mapId, IndexShuffleBlockResolver.NOOP_REDUCE_ID))
+    val block = ShuffleDataBlockId(shuffleId, mapId, IndexShuffleBlockResolver.NOOP_REDUCE_ID)
+    val out = new S3MeasureOutputStream(dispatcher.createBlock(block), block.name)
 
     // Note: HDFS does not exposed a nio-buffered write interface.
     Utils.copyStream(in, out, closeStreams = true)

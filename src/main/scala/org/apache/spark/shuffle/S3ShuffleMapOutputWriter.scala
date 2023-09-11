@@ -44,7 +44,7 @@ class S3ShuffleMapOutputWriter(
   def initStream(): Unit = {
     if (stream == null) {
       stream = dispatcher.createBlock(shuffleBlock)
-      bufferedStream = new BufferedOutputStream(stream, dispatcher.bufferSize)
+      bufferedStream = new S3MeasureOutputStream(new BufferedOutputStream(stream, dispatcher.bufferSize), shuffleBlock.name)
     }
   }
 
