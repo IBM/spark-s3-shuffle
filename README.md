@@ -30,7 +30,7 @@ These configuration values need to be passed to Spark to load and configure the 
     - `cos://zrlio-tmp.resources/` (Hadoop-Cloud + Stocator)
 
   Individual blocks are prefixed in order to get improved performance when accessing them on the remote filesystem.
-  The generated paths look like this: `${rootDir}/${mapId % 10}/${appDir}/ShuffleBlock{.data / .index}`.
+  The generated paths look like this: `${rootDir}/${mapId % 10}/${appId}/${shuffleId}/ShuffleBlock{.data / .index}`.
 
   The number of prefixes can be controlled with the option `spark.shuffle.s3.folderPrefixes`.
 

@@ -150,30 +150,7 @@ private[spark] class S3ShuffleManager(conf: SparkConf) extends ShuffleManager wi
     // Remove shuffle files from S3.
     if (dispatcher.cleanupShuffleFiles) {
       // Delete all
-      val shuffleIdFilter: PathFilter = new PathFilter() {
-        private val prefix = f"shuffle_${shuffleId}_"
-
-        override def accept(path: Path): Boolean = {
-          val name = path.getName
-          name.startsWith(prefix)
-        }
-      }
-
-      Range(0, dispatcher.folderPrefixes).flatMap(idx => {
-        val path = new Path(f"${dispatcher.rootDir}/${idx}${dispatcher.appDir}")
-        try {
-          dispatcher.fs.listStatus(path, shuffleIdFilter).map(f => {
-            Future {
-              dispatcher.fs.delete(f.getPath, false)
-            }
-          })
-        } catch {
-          case _: IOException => {
-            logDebug(s"Unable to delete ${path.getName}")
-            List()
-          }
-        }
-      }).foreach(Await.result(_, Duration.Inf))
+      dispatcher.removeShuffle(shuffleId)
     }
     true
   }

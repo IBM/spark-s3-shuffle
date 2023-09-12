@@ -48,7 +48,6 @@ class S3ShuffleDispatcher extends Logging {
   val checksumAlgorithm: String = SparkEnv.get.conf.get(config.SHUFFLE_CHECKSUM_ALGORITHM)
   val checksumEnabled: Boolean = SparkEnv.get.conf.get(config.SHUFFLE_CHECKSUM_ENABLED)
 
-  val appDir = f"/${startTime}-${appId}/"
   val fs: FileSystem = FileSystem.get(URI.create(rootDir), {
     SparkHadoopUtil.newConfiguration(conf)
   })
@@ -56,7 +55,7 @@ class S3ShuffleDispatcher extends Logging {
   val canSetReadahead = fs.hasPathCapability(new Path(rootDir), StreamCapabilities.READAHEAD)
 
   // Required
-  logInfo(s"- spark.shuffle.s3.rootDir=${rootDir} (app dir: ${appDir} - can set readahead: ${canSetReadahead})")
+  logInfo(s"- spark.shuffle.s3.rootDir=${rootDir} (appId: ${appId})")
 
   // Optional
   logInfo(s"- spark.shuffle.s3.bufferSize=${bufferSize}")
@@ -79,7 +78,7 @@ class S3ShuffleDispatcher extends Logging {
   def removeRoot(): Boolean = {
     Range(0, folderPrefixes).map(idx => {
       Future {
-        val prefix = f"${rootDir}/${idx}${appDir}"
+        val prefix = f"${rootDir}/${idx}/${appId}"
         try {
           fs.delete(new Path(prefix), true)
         } catch {
@@ -91,18 +90,49 @@ class S3ShuffleDispatcher extends Logging {
   }
 
   def getPath(blockId: BlockId): Path = {
-    val idx = (blockId match {
-      case ShuffleBlockId(_, mapId, _) =>
-        mapId
-      case ShuffleDataBlockId(_, mapId, _) =>
-        mapId
-      case ShuffleIndexBlockId(_, mapId, _) =>
-        mapId
-      case ShuffleChecksumBlockId(_, mapId, _) =>
-        mapId
-      case _ => 0
-    }) % folderPrefixes
-    new Path(f"${rootDir}/${idx}${appDir}/${blockId.name}")
+    val (shuffleId, mapId) = blockId match {
+      case ShuffleBlockId(shuffleId, mapId, _) =>
+        (shuffleId, mapId)
+      case ShuffleDataBlockId(shuffleId, mapId, _) =>
+        (shuffleId, mapId)
+      case ShuffleIndexBlockId(shuffleId, mapId, _) =>
+        (shuffleId, mapId)
+      case ShuffleChecksumBlockId(shuffleId, mapId, _) =>
+        (shuffleId, mapId)
+      case _ => (0, 0.toLong)
+    }
+    val idx = mapId % folderPrefixes
+    new Path(f"${rootDir}/${idx}/${appId}/${shuffleId}/${blockId.name}")
+  }
+
+  def listShuffleIndices(shuffleId: Int): Array[ShuffleIndexBlockId] = {
+    val shuffleIndexFilter: PathFilter = new PathFilter() {
+      override def accept(path: Path): Boolean = {
+        val name = path.getName
+        name.endsWith(".index")
+      }
+    }
+    Range(0, folderPrefixes).map(idx => {
+      Future {
+        val path = new Path(f"${rootDir}/${idx}/${appId}/${shuffleId}/")
+        try {
+          fs.listStatus(path, shuffleIndexFilter).map(v => {
+            BlockId.apply(v.getPath.getName).asInstanceOf[ShuffleIndexBlockId]
+          })
+        } catch {
+          case _: IOException => Array.empty[ShuffleIndexBlockId]
+        }
+      }
+    }).flatMap(Await.result(_, Duration.Inf)).toArray
+  }
+
+  def removeShuffle(shuffleId: Int): Unit = {
+    Range(0, folderPrefixes).map(idx => {
+      val path = new Path(f"${rootDir}/${idx}/${appId}/${shuffleId}/")
+      Future {
+        fs.delete(path, true)
+      }
+    }).foreach(Await.result(_, Duration.Inf))
   }
 
   /**
