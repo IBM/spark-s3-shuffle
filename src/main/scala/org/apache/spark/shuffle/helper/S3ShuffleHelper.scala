@@ -62,29 +62,6 @@ object S3ShuffleHelper extends Logging {
     file.close()
   }
 
-  def listShuffleIndices(shuffleId: Int): Array[ShuffleIndexBlockId] = {
-    val shuffleIndexFilter: PathFilter = new PathFilter() {
-      private val prefix = f"shuffle_${shuffleId}_"
-
-      override def accept(path: Path): Boolean = {
-        val name = path.getName
-        name.startsWith(prefix) && name.endsWith("_0.index")
-      }
-    }
-    Range(0, dispatcher.folderPrefixes).map(idx => {
-      Future {
-        val path = new Path(f"${dispatcher.rootDir}/${idx}${dispatcher.appDir}")
-        try {
-          dispatcher.fs.listStatus(path, shuffleIndexFilter).map(v => {
-            BlockId.apply(v.getPath.getName).asInstanceOf[ShuffleIndexBlockId]
-          })
-        } catch {
-          case _: IOException => Array.empty[ShuffleIndexBlockId]
-        }
-      }
-    }).flatMap(Await.result(_, Duration.Inf)).toArray
-  }
-
   /**
    * Get the cached partition length for shuffle index at shuffleId and mapId
    *
