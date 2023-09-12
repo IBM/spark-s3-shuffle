@@ -66,6 +66,11 @@ else
     PROCESS_TAG="${PROCESS_TAG}-s3shuffle"
 fi
 
+SPARK_KUBERNETES_TEMPLATES=(
+    --conf spark.kubernetes.executor.podTemplateFile=${SCRIPT_DIR}/../templates/executor.yml
+    --conf spark.kubernetes.driver.podTemplateFile=${SCRIPT_DIR}/../templates/driver.yml
+)
+
 USE_NFS_SHUFFLE=${USE_NFS_SHUFFLE:-0}
 if (( "$USE_NFS_SHUFFLE" == 1 )); then
     PROCESS_TAG="${PROCESS_TAG}-s3shuffle-nfs"
@@ -74,9 +79,12 @@ if (( "$USE_NFS_SHUFFLE" == 1 )); then
         --conf spark.shuffle.sort.io.plugin.class=org.apache.spark.shuffle.S3ShuffleDataIO
         --conf spark.shuffle.checksum.enabled=${CHECKSUM_ENABLED}
         --conf spark.shuffle.s3.rootDir=file:///nfs/
+        --conf spark.hadoop.fs.file.block.size=$((128*1024*1024))
+    )
+
+    SPARK_KUBERNETES_TEMPLATES=(
         --conf spark.kubernetes.executor.podTemplateFile=${SCRIPT_DIR}/../templates/executor_nfs.yml
         --conf spark.kubernetes.driver.podTemplateFile=${SCRIPT_DIR}/../templates/driver_nfs.yml
-        --conf spark.hadoop.fs.file.block.size=$((128*1024*1024))
     )
 fi
 
@@ -106,6 +114,7 @@ ${SPARK_HOME}/bin/spark-submit \
     --conf spark.executor.instances=$INSTANCES \
     "${SPARK_HADOOP_S3A_CONFIG[@]}" \
     "${SPARK_S3_SHUFFLE_CONFIG[@]}" \
+    "${SPARK_KUBERNETES_TEMPLATES[@]}" \
     --conf spark.ui.prometheus.enabled=true \
     --conf spark.network.timeout=10000 \
     --conf spark.executor.heartbeatInterval=20000 \
