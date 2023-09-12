@@ -68,6 +68,7 @@ fi
 
 USE_NFS_SHUFFLE=${USE_NFS_SHUFFLE:-0}
 if (( "$USE_NFS_SHUFFLE" == 1 )); then
+    PROCESS_TAG="${PROCESS_TAG}-s3shuffle-nfs"
     SPARK_S3_SHUFFLE_CONFIG=(
         --conf spark.shuffle.manager="org.apache.spark.shuffle.sort.S3ShuffleManager"
         --conf spark.shuffle.sort.io.plugin.class=org.apache.spark.shuffle.S3ShuffleDataIO
