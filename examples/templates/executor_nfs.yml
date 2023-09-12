@@ -3,6 +3,10 @@ Kind: Pod
 metadata:
   labels:
     template-label-key: executor-template-label-value
+  annotations:
+    prometheus.io/path: "/metrics/executors/prometheus"
+    prometheus.io/port: "4040"
+    prometheus.io/scrape: "true"
 spec:
   type: ClusterIP
   containers:
