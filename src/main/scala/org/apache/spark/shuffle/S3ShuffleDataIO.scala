@@ -28,7 +28,7 @@ class S3ShuffleDataIO(sparkConf: SparkConf) extends ShuffleDataIO {
     private val blockManager = SparkEnv.get.blockManager
 
     override def initializeExecutor(appId: String, execId: String, extraConfigs: util.Map[String, String]): Unit = {
-      // ToDo: Implement dispatcher.
+      S3ShuffleDispatcher.get.reinitialize(appId)
     }
 
     override def createMapOutputWriter(shuffleId: Int, mapTaskId: Long, numPartitions: Int): ShuffleMapOutputWriter = {

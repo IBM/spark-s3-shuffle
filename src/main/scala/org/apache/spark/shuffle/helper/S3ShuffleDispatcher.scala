@@ -7,10 +7,12 @@ package org.apache.spark.shuffle.helper
 
 import org.apache.hadoop.fs._
 import org.apache.spark.deploy.SparkHadoopUtil
+import org.apache.spark.internal.config.STORAGE_DECOMMISSION_FALLBACK_STORAGE_PATH
 import org.apache.spark.internal.{Logging, config}
+import org.apache.spark.network.util.JavaUtils
 import org.apache.spark.shuffle.ConcurrentObjectMap
 import org.apache.spark.storage._
-import org.apache.spark.{SparkConf, SparkEnv}
+import org.apache.spark.{SparkConf, SparkEnv, SparkException}
 
 import java.io.IOException
 import java.net.URI
@@ -24,12 +26,28 @@ import scala.concurrent.{Await, Future}
 class S3ShuffleDispatcher extends Logging {
   val executorId: String = SparkEnv.get.executorId
   val conf: SparkConf = SparkEnv.get.conf
-  val appId: String = conf.getAppId
+  private var appId: String = conf.getAppId
+
+  def reinitialize(newAppId: String): Unit = {
+    appId = newAppId
+    cachedFileStatus.clear()
+    S3ShuffleHelper.purgeCachedData()
+  }
+
   val startTime: String = conf.get("spark.app.startTime")
 
   // Required
-  val rootDir = conf.get("spark.shuffle.s3.rootDir", defaultValue = "sparkS3shuffle")
-
+  val useSparkShuffleFetch: Boolean = conf.getBoolean("spark.shuffle.s3.useSparkShuffleFetch", defaultValue = false)
+  private val fallbackStoragePath_ = conf.get(STORAGE_DECOMMISSION_FALLBACK_STORAGE_PATH)
+  val fallbackStoragePath = if (fallbackStoragePath_.isEmpty && useSparkShuffleFetch) {
+    throw new SparkException(s"spark.shuffle.s3.useSparkShuffleFetch is set, but no ${STORAGE_DECOMMISSION_FALLBACK_STORAGE_PATH}")
+  } else {
+    fallbackStoragePath_.getOrElse(s"${STORAGE_DECOMMISSION_FALLBACK_STORAGE_PATH} is not set.")
+  }
+  val rootDir = if (useSparkShuffleFetch) fallbackStoragePath else conf.get("spark.shuffle.s3.rootDir", defaultValue = "sparkS3shuffle/")
+  if (!rootDir.endsWith("/")) {
+    throw new SparkException("spark.shuffle.s3.rootDir needs to end with a `/`.")
+  }
   // Optional
   val bufferSize: Int = conf.getInt("spark.shuffle.s3.bufferSize", defaultValue = 8 * 1024 * 1024)
   val maxBufferSizeTask: Int = conf.getInt("spark.shuffle.s3.maxBufferSizeTask", defaultValue = 128 * 1024 * 1024)
@@ -56,8 +74,11 @@ class S3ShuffleDispatcher extends Logging {
 
   // Required
   logInfo(s"- spark.shuffle.s3.rootDir=${rootDir} (appId: ${appId})")
-
+  if (useSparkShuffleFetch) {
+    logInfo(s"  ${STORAGE_DECOMMISSION_FALLBACK_STORAGE_PATH} is used as storage location.")
+  }
   // Optional
+  logInfo(s"- spark.shuffle.s3.useSparkShuffleFetch=${useSparkShuffleFetch}")
   logInfo(s"- spark.shuffle.s3.bufferSize=${bufferSize}")
   logInfo(s"- spark.shuffle.s3.maxBufferSizeTask=${maxBufferSizeTask}")
   logInfo(s"- spark.shuffle.s3.maxConcurrencyTask=${maxConcurrencyTask}")
@@ -78,7 +99,7 @@ class S3ShuffleDispatcher extends Logging {
   def removeRoot(): Boolean = {
     Range(0, folderPrefixes).map(idx => {
       Future {
-        val prefix = f"${rootDir}/${idx}/${appId}"
+        val prefix = f"${rootDir}${idx}/${appId}"
         try {
           fs.delete(new Path(prefix), true)
         } catch {
@@ -101,11 +122,24 @@ class S3ShuffleDispatcher extends Logging {
         (shuffleId, mapId)
       case _ => (0, 0.toLong)
     }
+    if (useSparkShuffleFetch) {
+      blockId match {
+        case ShuffleDataBlockId(_, _, _) =>
+        case ShuffleIndexBlockId(_, _, _) =>
+        case ShuffleChecksumBlockId(_, _, _) =>
+        case _ => throw new SparkException(s"Unsupported block id type: ${blockId.name}")
+      }
+      val hash = JavaUtils.nonNegativeHash(blockId.name)
+      return new Path(f"${rootDir}${appId}/${shuffleId}/${hash}/${blockId.name}")
+    }
     val idx = mapId % folderPrefixes
-    new Path(f"${rootDir}/${idx}/${appId}/${shuffleId}/${blockId.name}")
+    new Path(f"${rootDir}${idx}/${appId}/${shuffleId}/${blockId.name}")
   }
 
   def listShuffleIndices(shuffleId: Int): Array[ShuffleIndexBlockId] = {
+    if (useSparkShuffleFetch) {
+      throw new SparkException("Not supported.")
+    }
     val shuffleIndexFilter: PathFilter = new PathFilter() {
       override def accept(path: Path): Boolean = {
         val name = path.getName
@@ -114,7 +148,7 @@ class S3ShuffleDispatcher extends Logging {
     }
     Range(0, folderPrefixes).map(idx => {
       Future {
-        val path = new Path(f"${rootDir}/${idx}/${appId}/${shuffleId}/")
+        val path = new Path(f"${rootDir}${idx}/${appId}/${shuffleId}/")
         try {
           fs.listStatus(path, shuffleIndexFilter).map(v => {
             BlockId.apply(v.getPath.getName).asInstanceOf[ShuffleIndexBlockId]
@@ -128,7 +162,7 @@ class S3ShuffleDispatcher extends Logging {
 
   def removeShuffle(shuffleId: Int): Unit = {
     Range(0, folderPrefixes).map(idx => {
-      val path = new Path(f"${rootDir}/${idx}/${appId}/${shuffleId}/")
+      val path = new Path(f"${rootDir}${idx}/${appId}/${shuffleId}/")
       Future {
         fs.delete(path, true)
       }
@@ -208,4 +242,5 @@ object S3ShuffleDispatcher extends Logging {
     }
     store
   }
+
 }

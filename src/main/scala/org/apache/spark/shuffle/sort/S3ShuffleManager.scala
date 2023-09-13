@@ -23,10 +23,9 @@
 package org.apache.spark.shuffle.sort
 
 import com.ibm.SparkS3ShuffleBuild
-
 import org.apache.hadoop.fs.{Path, PathFilter}
 import org.apache.spark._
-import org.apache.spark.internal.Logging
+import org.apache.spark.internal.{Logging, config}
 import org.apache.spark.shuffle._
 import org.apache.spark.shuffle.api.ShuffleExecutorComponents
 import org.apache.spark.shuffle.helper.{S3ShuffleDispatcher, S3ShuffleHelper}
@@ -91,6 +90,15 @@ private[spark] class S3ShuffleManager(conf: SparkConf) extends ShuffleManager wi
                                 endPartition: Int,
                                 context: TaskContext,
                                 metrics: ShuffleReadMetricsReporter): ShuffleReader[K, C] = {
+    if (dispatcher.useSparkShuffleFetch) {
+      val blocksByAddress = SparkEnv.get.mapOutputTracker.getMapSizesByExecutorId(
+        handle.shuffleId, startMapIndex, endMapIndex, startPartition, endPartition)
+      val canEnableBatchFetch = true
+      return new BlockStoreShuffleReader(
+        handle.asInstanceOf[BaseShuffleHandle[K, _, C]], blocksByAddress, context, metrics,
+        shouldBatchFetch =
+          canEnableBatchFetch && SortShuffleManager.canUseBatchFetch(startPartition, endPartition, context))
+    }
     new S3ShuffleReader(
       conf,
       handle.asInstanceOf[BaseShuffleHandle[K, _, C]],

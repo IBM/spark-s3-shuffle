@@ -52,6 +52,9 @@ Changing these values might have an impact on performance.
 
   **Note**: This option creates additional overhead if active. Suggested configuration: `false`.
 
+- `spark.shuffle.s3.useSparkShuffleFetch`: Uses the Spark shuffle fetch iterator.
+
+  **Note**: This uses `spark.storage.decommission.fallbackStorage.path` instead of `spark.shuffle.s3.rootDir`.
 
 ### Debug configuration options
 
