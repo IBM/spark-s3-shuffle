@@ -62,9 +62,16 @@ jobs:
         distribution: temurin
         java-version: 11
         cache: sbt
-    - name: Test
+    - name: Test Default Shuffle Fetch
       shell: bash
       if: startsWith(matrix.scala, '2.12.')
+      run: |
+        sbt test
+    - name: Test Spark Shuffle Fetch
+      shell: bash
+      if: startsWith(matrix.scala, '2.12.') && !startsWith(matrix.spark, '3.2.')
+      env:
+        USE_SPARK_SHUFFLE_FETCH: "true"
       run: |
         sbt test
     - name: Package
