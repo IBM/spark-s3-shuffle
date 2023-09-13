@@ -25,6 +25,7 @@ EXECUTOR_MEMORY_OVERHEAD=${EXECUTOR_MEMORY_OVERHEAD:-19000M} # 16G is allocated 
 INSTANCES=${INSTANCES:-4}
 
 CHECKSUM_ENABLED=${CHECKSUM_ENABLED:-"true"}
+USE_FALLBACK_FETCH=${USE_FALLBACK_FETCH:-"false"}
 
 EXTRA_CLASSPATHS='/opt/spark/jars/*'
 EXECUTOR_JAVA_OPTIONS="-Dsun.nio.PageAlignDirectMemory=true"
@@ -54,6 +55,8 @@ SPARK_S3_SHUFFLE_CONFIG=(
     --conf spark.shuffle.sort.io.plugin.class=org.apache.spark.shuffle.S3ShuffleDataIO
     --conf spark.shuffle.checksum.enabled=${CHECKSUM_ENABLED}
     --conf spark.shuffle.s3.rootDir=${SHUFFLE_DESTINATION}
+    --conf spark.shuffle.s3.useSparkShuffleFetch=${USE_FALLBACK_FETCH}
+    --conf spark.storage.decommission.fallbackStorage.path=${SHUFFLE_DESTINATION}
 )
 
 if (( "$USE_S3_SHUFFLE" == 0 )); then
@@ -80,12 +83,18 @@ if (( "$USE_NFS_SHUFFLE" == 1 )); then
         --conf spark.kubernetes.executor.podTemplateFile=${SCRIPT_DIR}/../templates/executor_nfs.yml
         --conf spark.kubernetes.driver.podTemplateFile=${SCRIPT_DIR}/../templates/driver_nfs.yml
         --conf spark.hadoop.fs.file.block.size=$((128*1024*1024))
+        --conf spark.shuffle.s3.useSparkShuffleFetch=${USE_FALLBACK_FETCH}
+        --conf spark.storage.decommission.fallbackStorage.path=file:///nfs/
     )
 
     SPARK_KUBERNETES_TEMPLATES=(
         --conf spark.kubernetes.executor.podTemplateFile=${SCRIPT_DIR}/../templates/executor_nfs.yml
         --conf spark.kubernetes.driver.podTemplateFile=${SCRIPT_DIR}/../templates/driver_nfs.yml
     )
+fi
+
+if [[ "${USE_FALLBACK_FETCH}" == "true" ]]; then
+    PROCESS_TAG="${PROCESS_TAG}-fallback"
 fi
 
 USE_PROFILER=${USE_PROFILER:-0}
