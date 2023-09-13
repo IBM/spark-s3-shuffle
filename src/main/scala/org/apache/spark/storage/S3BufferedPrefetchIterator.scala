@@ -5,6 +5,7 @@
 
 package org.apache.spark.storage
 
+import org.apache.spark.TaskContext
 import org.apache.spark.internal.Logging
 import org.apache.spark.shuffle.helper.S3ShuffleDispatcher
 
@@ -152,6 +153,9 @@ class S3BufferedPrefetchIterator(iter: Iterator[(BlockId, S3ShuffleBlockStream)]
 
   private def printStatistics(): Unit = synchronized {
     val totalRuntime = System.nanoTime() - startTime
+    val tc = TaskContext.get()
+    val sId = tc.stageId()
+    val sAt = tc.stageAttemptNumber()
     try {
       val tR = totalRuntime / 1000000
       val wPer = 100 * timeWaiting / totalRuntime
@@ -169,7 +173,8 @@ class S3BufferedPrefetchIterator(iter: Iterator[(BlockId, S3ShuffleBlockStream)]
       val bs = bR / r
       // Threads
       val ta = desiredActiveThreads.get()
-      logInfo(s"Statistics: ${bR} bytes, ${tW} ms waiting (${atW} avg), " +
+      logInfo(s"Statistics: Stage ${sId}.${sAt} TID ${tc.taskAttemptId()} -- " +
+                s"${bR} bytes, ${tW} ms waiting (${atW} avg), " +
                 s"${tP} ms prefetching (avg: ${atP} ms - ${bs} block size - ${bW} MiB/s). " +
                 s"Total: ${tR} ms - ${wPer}% waiting. ${ta} active threads.")
     } catch {
