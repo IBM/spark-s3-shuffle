@@ -243,7 +243,7 @@ class S3ShuffleManagerTest {
     .set("spark.driver.allowMultipleContexts", "true")
     .set("spark.app.id", "app-" + UUID.randomUUID())
     .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
-    .set("spark.shuffle.s3.rootDir", "file:///tmp/spark-s3-shuffle/")
+    .set("spark.shuffle.s3.rootDir", "file:///tmp/spark-s3-shuffle")
     .set("spark.storage.decommission.fallbackStorage.path", "file:///tmp/spark-s3-shuffle/")
     .set("spark.dynamicAllocation.enabled", "true")
     .set("spark.local.dir", "./spark-temp") // Configure the working dir.
