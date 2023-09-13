@@ -31,6 +31,11 @@ object S3ShuffleHelper extends Logging {
     }
   }
 
+  def purgeCachedData(): Unit = {
+    cachedChecksums.clear()
+    cachedArrayLengths.clear()
+  }
+
   /**
    * Write partitionLengths for block with shuffleId and mapId at 0.
    *
