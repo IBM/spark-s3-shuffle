@@ -1,22 +1,15 @@
 package org.apache.spark.shuffle.helper
 
-import org.apache.hadoop.fs.{Path, PathFilter}
-import org.apache.spark.SparkEnv
+import org.apache.spark.{SparkException}
 import org.apache.spark.internal.Logging
 import org.apache.spark.shuffle.ConcurrentObjectMap
 import org.apache.spark.shuffle.IndexShuffleBlockResolver.NOOP_REDUCE_ID
 import org.apache.spark.storage.{BlockId, ShuffleChecksumBlockId, ShuffleIndexBlockId}
 
-import java.io.{BufferedInputStream, BufferedOutputStream, IOException}
-import java.nio.ByteBuffer
-import java.util
+import java.io.{BufferedInputStream, BufferedOutputStream, DataInputStream, DataOutputStream}
 import java.util.zip.{Adler32, CRC32, Checksum}
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration.Duration
-import scala.concurrent.{Await, Future}
 
 object S3ShuffleHelper extends Logging {
-  private lazy val serializer = SparkEnv.get.serializer
   private lazy val dispatcher = S3ShuffleDispatcher.get
 
   private val cachedChecksums = new ConcurrentObjectMap[ShuffleChecksumBlockId, Array[Long]]()
@@ -46,7 +39,8 @@ object S3ShuffleHelper extends Logging {
    * @param partitionLengths
    */
   def writePartitionLengths(shuffleId: Int, mapId: Long, partitionLengths: Array[Long]): Unit = {
-    writeArrayAsBlock(ShuffleIndexBlockId(shuffleId, mapId, NOOP_REDUCE_ID), partitionLengths)
+    val accumulated = Array[Long](0) ++ partitionLengths.tail.scan(partitionLengths.head)(_ + _)
+    writeArrayAsBlock(ShuffleIndexBlockId(shuffleId, mapId, NOOP_REDUCE_ID), accumulated)
   }
 
   def writeChecksum(shuffleId: Int, mapId: Long, checksums: Array[Long]): Unit = {
@@ -54,12 +48,11 @@ object S3ShuffleHelper extends Logging {
   }
 
   def writeArrayAsBlock(blockId: BlockId, array: Array[Long]): Unit = {
-    val serializerInstance = serializer.newInstance()
-    val buffer = serializerInstance.serialize[Array[Long]](array)
     val file = dispatcher.createBlock(blockId)
-    file.write(buffer.array(), buffer.arrayOffset(), buffer.limit())
-    file.flush()
-    file.close()
+    val out = new DataOutputStream(new BufferedOutputStream(file, scala.math.min(8192, 8 * array.length)))
+    array.foreach(out.writeLong)
+    out.flush()
+    out.close()
   }
 
   /**
@@ -108,34 +101,18 @@ object S3ShuffleHelper extends Logging {
     }
   }
 
-  private def readBlockAsArray(blockId: BlockId) = {
+  private def readBlockAsArray(blockId: BlockId): Array[Long] = {
     val stat = dispatcher.getFileStatusCached(blockId)
-    val fsize = scala.math.min(stat.getLen.toInt, dispatcher.bufferSize)
-    val file = new BufferedInputStream(dispatcher.openBlock(blockId), fsize)
-    var buffer = new Array[Byte](fsize)
-    var numBytes = 0
-    var done = false
-    while (!done) {
-      val c = file.read(buffer, numBytes, buffer.length - numBytes)
-      if (c >= 0) {
-        numBytes += c
-        if (numBytes >= buffer.length) {
-          buffer = util.Arrays.copyOf(buffer, buffer.length * 2)
-        }
-      } else {
-        done = true
-      }
+    val fileLength = stat.getLen.toInt
+    val input = new DataInputStream(new BufferedInputStream(dispatcher.openBlock(blockId), math.min(fileLength, dispatcher.bufferSize)))
+    val count = fileLength / 8
+    if (fileLength % 8 != 0) {
+      throw new SparkException(s"Unexpected file length when reading ${blockId.name}")
     }
-    val serializerInstance = serializer.newInstance()
-    try {
-      val result = serializerInstance.deserialize[Array[Long]](ByteBuffer.wrap(buffer, 0, numBytes))
-      result
-    } catch {
-      case e: Exception =>
-        logError(e.getMessage)
-        throw e
-    } finally {
-      file.close()
+    val result = new Array[Long](count)
+    for (pos <- 0 until count) {
+      result(pos) = input.readLong()
     }
+    result
   }
 }
