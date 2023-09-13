@@ -238,7 +238,7 @@ class S3ShuffleManagerTest {
   def newSparkConf(): SparkConf = new SparkConf()
     .setAppName("testApp")
     .setMaster(s"local[2]")
-    .set("spark.shuffle.s3.useSparkShuffleFetch", "false")
+    .set("spark.shuffle.s3.useSparkShuffleFetch", scala.util.Properties.envOrElse("USE_SPARK_SHUFFLE_FETCH", "false"))
     .set("spark.ui.enabled", "false")
     .set("spark.driver.allowMultipleContexts", "true")
     .set("spark.app.id", "app-" + UUID.randomUUID())
