@@ -13,6 +13,12 @@ class ConcurrentObjectMap[K, V] {
   private val valueLocks = new TrieMap[K, Object]()
   private val map = new TrieMap[K, V]()
 
+  def clear(): Unit = {
+    lock.synchronized {
+      map.clear()
+    }
+  }
+
   def getOrElsePut(key: K, op: K => V): V = {
     val l = valueLocks.get(key).getOrElse({
       lock.synchronized {
