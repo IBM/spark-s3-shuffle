@@ -1,5 +1,6 @@
 package org.apache.spark.shuffle
 
+import org.apache.spark.TaskContext
 import org.apache.spark.internal.Logging
 
 import java.io.{IOException, OutputStream}
@@ -52,8 +53,12 @@ class S3MeasureOutputStream(var out: OutputStream, label: String = "") extends O
     isOpen = false
     super.close()
 
+    val tc = TaskContext.get()
+    val sId = tc.stageId()
+    val sAt = tc.stageAttemptNumber()
     val t = timings / 1000000
     val bw = bytes.toDouble / (t.toDouble / 1000) / (1024 * 1024)
-    logInfo(s"Statistics: Writing ${label} ${bytes} took ${t} ms (${bw} MiB/s)")
+    logInfo(s"Statistics: Stage ${sId}.${sAt} TID ${tc.taskAttemptId()} -- " +
+              s"Writing ${label} ${bytes} took ${t} ms (${bw} MiB/s)")
   }
 }
