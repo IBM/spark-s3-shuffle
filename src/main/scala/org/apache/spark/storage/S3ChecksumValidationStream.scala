@@ -32,7 +32,8 @@ class S3ChecksumValidationStream(
 
   private var pos: Long = 0
   private var reduceId: Int = startReduceId
-  private var blockLength: Long = lengths(reduceId)
+
+  private var blockLength: Long = lengths(reduceId+1) - lengths(reduceId)
 
   private def eof(): Boolean = reduceId > endReduceId
 
@@ -76,7 +77,7 @@ class S3ChecksumValidationStream(
     pos = 0
     reduceId += 1
     if (reduceId < endReduceId) {
-      blockLength = lengths(reduceId)
+      blockLength = lengths(reduceId+1) - lengths(reduceId)
       if (blockLength == 0) {
         validateChecksum()
       }

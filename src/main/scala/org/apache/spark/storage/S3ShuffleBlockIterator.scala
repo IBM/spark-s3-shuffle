@@ -36,10 +36,10 @@ class S3ShuffleBlockIterator(
       try {
         val stream = nextBlock match {
           case ShuffleBlockId(shuffleId, mapId, reduceId) =>
-            val lengths = getAccumulatedLengths(shuffleId, mapId)
+            val lengths = S3ShuffleHelper.getPartitionLengths(shuffleId, mapId)
             new S3ShuffleBlockStream(shuffleId, mapId, reduceId, reduceId + 1, lengths)
           case ShuffleBlockBatchId(shuffleId, mapId, startReduceId, endReduceId) =>
-            val lengths = getAccumulatedLengths(shuffleId, mapId)
+            val lengths = S3ShuffleHelper.getPartitionLengths(shuffleId, mapId)
             new S3ShuffleBlockStream(shuffleId, mapId, startReduceId, endReduceId, lengths)
           case _ => throw new RuntimeException(f"Unexpected block ${nextBlock}.")
         }
@@ -54,10 +54,5 @@ class S3ShuffleBlockIterator(
       }
     } while (shuffleBlocks.hasNext)
     None
-  }
-
-  def getAccumulatedLengths(shuffleId: Int, mapId: Long): Array[Long] = {
-    val lengths = S3ShuffleHelper.getPartitionLengths(shuffleId, mapId)
-    Array[Long](0) ++ lengths.tail.scan(lengths.head)(_ + _)
   }
 }
