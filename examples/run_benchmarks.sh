@@ -29,10 +29,25 @@ do
     for ((i = 0 ; i < ${REPEAT} ; i++));
     do
        export SIZE=$size
+       export USE_FALLBACK_FETCH=false
+
        export USE_S3_SHUFFLE=0
-        export USE_NFS_SHUFFLE=0
+       export USE_NFS_SHUFFLE=0
        ./terasort/run.sh || true
        mc rm -r --force zac/zrlio-tmp
+
+       export USE_S3_SHUFFLE=0
+       export USE_NFS_SHUFFLE=1
+       ./terasort/run.sh || true
+       mc rm -r --force zac/zrlio-tmp
+
+       export USE_S3_SHUFFLE=1
+       export USE_NFS_SHUFFLE=0
+       ./terasort/run.sh || true
+       mc rm -r --force zac/zrlio-tmp
+
+       # Enable fallback fetch
+       export USE_FALLBACK_FETCH=true
 
        export USE_S3_SHUFFLE=0
        export USE_NFS_SHUFFLE=1
@@ -59,11 +74,23 @@ SQL_QUERIES=(
 for ((i = 0 ; i < ${REPEAT} ; i++));
 do
     for query in "${SQL_QUERIES[@]}"; do
+        export USE_FALLBACK_FETCH=false
+
+        export USE_S3_SHUFFLE=0
+        export USE_NFS_SHUFFLE=0
+        ./sql/run_single_query.sh $query || true
+        
         export USE_S3_SHUFFLE=0
         export USE_NFS_SHUFFLE=1
         ./sql/run_single_query.sh $query || true
-        
-    
+
+        export USE_S3_SHUFFLE=1
+        export USE_NFS_SHUFFLE=0
+        ./sql/run_single_query.sh $query || true
+
+        # Enable fallback fetch.
+        export USE_FALLBACK_FETCH=true
+
         export USE_S3_SHUFFLE=0
         export USE_NFS_SHUFFLE=1
         ./sql/run_single_query.sh $query || true
