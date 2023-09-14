@@ -46,7 +46,6 @@ SPARK_HADOOP_S3A_CONFIG=(
     --conf spark.hadoop.fs.s3a.path.style.access=true
     --conf spark.hadoop.fs.s3a.fast.upload=true
     --conf spark.hadoop.fs.s3a.block.size=$((128*1024*1024))
-    --conf spark.hadoop.fs.s3a.multipart.size=$((32*1024*1024))
 )
 
 
