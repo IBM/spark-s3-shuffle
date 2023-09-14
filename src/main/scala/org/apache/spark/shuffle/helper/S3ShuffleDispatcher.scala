@@ -50,7 +50,7 @@ class S3ShuffleDispatcher extends Logging {
   // Optional
   val bufferSize: Int = conf.getInt("spark.shuffle.s3.bufferSize", defaultValue = 8 * 1024 * 1024)
   val maxBufferSizeTask: Int = conf.getInt("spark.shuffle.s3.maxBufferSizeTask", defaultValue = 128 * 1024 * 1024)
-  val maxConcurrencyTask: Int = conf.getInt("spark.shuffle.s3.maxConcurrencyTask", defaultValue = 5)
+  val maxConcurrencyTask: Int = conf.getInt("spark.shuffle.s3.maxConcurrencyTask", defaultValue = 10)
   val cachePartitionLengths: Boolean = conf.getBoolean("spark.shuffle.s3.cachePartitionLengths", defaultValue = true)
   val cacheChecksums: Boolean = conf.getBoolean("spark.shuffle.s3.cacheChecksums", defaultValue = true)
   val cleanupShuffleFiles: Boolean = conf.getBoolean("spark.shuffle.s3.cleanup", defaultValue = true)
