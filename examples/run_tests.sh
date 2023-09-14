@@ -22,7 +22,7 @@ TERASORT_SIZES=(
    10g
    100g
 )
-for size in "${TERASORT_SIZES[@]}"; 
+for size in "${TERASORT_SIZES[@]}";
 do
    for i in {0..3}
    do

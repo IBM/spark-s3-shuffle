@@ -40,7 +40,8 @@ Changing these values might have an impact on performance.
 
 - `spark.shuffle.s3.bufferSize`: Default buffer size when writing (default: `8388608`)
 - `spark.shuffle.s3.maxBufferSizeTask`: Maximum size of the buffered output streams per task (default: `134217728`)
-- `spark.shuffle.s3.maxConcurrencyTask`: Maximum per task concurrency. Computed by analysing the IO latencies (default: `10`).
+- `spark.shuffle.s3.maxConcurrencyTask`: Maximum per task concurrency. Computed by analysing the IO latencies (
+  default: `10`).
 - `spark.shuffle.s3.cachePartitionLengths`: Cache partition lengths in memory (default: `true`)
 - `spark.shuffle.s3.cacheChecksums`: Cache checksums in memory (default: `true`)
 - `spark.shuffle.s3.cleanup`: Cleanup the shuffle files (default: `true`)
@@ -131,6 +132,40 @@ Add the following lines to your Spark configuration:
     --conf spark.driver.extraClassPath='/opt/spark/jars/aws-java-sdk-bundle-1.11.375.jar,/opt/spark/jars/hadoop-aws-3.2.0.jar'
     --conf spark.executor.extraClassPath='/opt/spark/jars/aws-java-sdk-bundle-1.11.375.jar,/opt/spark/jars/hadoop-aws-3.2.0.jar'
 ```
+
+#### Performance Tuning
+
+Consider adapting the following configuration variables:
+
+- The concurrency of the S3 prefetcher can be increased by configuring `spark.shuffle.s3.maxConcurrencyTask`. This
+  value controls the number of threads prefetching blocks which are due to be read.
+
+  Default: `10`.
+
+- Increase the block size for the S3A filesystem with `spark.hadoop.fs.s3a.block.size`. This value
+  effects the number of partitions created by Spark (if the input data is located on S3 as well).
+  By default the block size is 32 MiB. If the value is increased to 128 MiB Spark will
+  create less partitions and thus create bigger partition blocks.
+
+  **Recommmended:** `134217728`, default `33554432`.
+
+- Increase the number of connections and threads of the hadoop S3A plugin. This can be controlled with the following
+  variables:
+
+    - `spark.hadoop.fs.s3a.threads.max`. **Recommended**: `20`
+
+    - `spark.hadoop.fs.s3a.connection.maximum` **Recommended**: `20`
+
+  More information is
+  available [here](https://hadoop.apache.org/docs/r3.2.0/hadoop-aws/tools/hadoop-aws/performance.html).
+
+- Reduce the multi-part size to increase the upload speed for smaller-objects by configuring
+  `spark.hadoop.fs.s3a.multipart.size`. Reason S3A shuffle partitions are typically below 128 MiB.
+  Decreasing the multi-part size will allow S3A to upload more blocks concurrently.
+
+  **Recommended**: `33554432`, default `67108864`
+
+  **Note**: This has an effect on the maximum file size that can be stored on S3.
 
 ### With COS/Stocator Plugin
 
