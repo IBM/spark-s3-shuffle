@@ -118,6 +118,7 @@ object S3ShuffleHelper extends Logging {
     for (pos <- 0 until count) {
       result(pos) = input.readLong()
     }
+    input.close()
     result
   }
 }
