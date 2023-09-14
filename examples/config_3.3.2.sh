@@ -10,7 +10,7 @@ export SPARK_HOME="/home/${USER}/software/spark-3.3.2-bin-hadoop3"
 ## Build Configuration for the Spark Docker container
 # Determine using https://mvnrepository.com/artifact/org.apache.spark/spark-core_2.12/3.3.2
 export SPARK_VERSION=3.3.2
-export S3_SHUFFLE_VERSION=0.9.3
+export S3_SHUFFLE_VERSION=0.9.4
 export HADOOP_VERSION=3.3.2
 export AWS_SDK_VERSION=1.11.1026
 
