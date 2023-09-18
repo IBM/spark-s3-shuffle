@@ -35,6 +35,12 @@ export SPARK_EXECUTOR_CORES=$EXECUTOR_CPU
 export SPARK_DRIVER_MEMORY=$DRIVER_MEM
 export SPARK_EXECUTOR_MEMORY=$EXECUTOR_MEM
 
+BLOCK_SIZE=${BLOCK_SIZE:-128}
+LOGGING=(
+    --conf spark.eventLog.enabled=true
+    --conf spark.eventLog.dir=file:///spark-logs
+)
+
 SPARK_HADOOP_S3A_CONFIG=(
     # Required
     --conf spark.hadoop.fs.s3a.impl=org.apache.hadoop.fs.s3a.S3AFileSystem
@@ -44,7 +50,7 @@ SPARK_HADOOP_S3A_CONFIG=(
     --conf spark.hadoop.fs.s3a.endpoint=${S3A_ENDPOINT}
     --conf spark.hadoop.fs.s3a.path.style.access=true
     --conf spark.hadoop.fs.s3a.fast.upload=true
-    --conf spark.hadoop.fs.s3a.block.size=$((128*1024*1024))
+    --conf spark.hadoop.fs.s3a.block.size=$(($BLOCK_SIZE * 1024 * 1024))
 )
 
 SPARK_S3_SHUFFLE_CONFIG=(
@@ -55,8 +61,8 @@ SPARK_S3_SHUFFLE_CONFIG=(
     --conf spark.shuffle.sort.io.plugin.class=org.apache.spark.shuffle.S3ShuffleDataIO
     --conf spark.shuffle.checksum.enabled=${CHECKSUM_ENABLED}
     --conf spark.shuffle.s3.rootDir=${SHUFFLE_DESTINATION}
-    --conf spark.shuffle.s3.useSparkShuffleFetch=${USE_FALLBACK_FETCH}
-    --conf spark.storage.decommission.fallbackStorage.path=${SHUFFLE_DESTINATION}
+    # --conf spark.shuffle.s3.useSparkShuffleFetch=${USE_FALLBACK_FETCH}
+    # --conf spark.storage.decommission.fallbackStorage.path=${SHUFFLE_DESTINATION}
 )
 
 if (( "$USE_S3_SHUFFLE" == 0 )); then
@@ -83,8 +89,8 @@ if (( "$USE_NFS_SHUFFLE" == 1 )); then
         --conf spark.kubernetes.executor.podTemplateFile=${SCRIPT_DIR}/../templates/executor_nfs.yml
         --conf spark.kubernetes.driver.podTemplateFile=${SCRIPT_DIR}/../templates/driver_nfs.yml
         --conf spark.hadoop.fs.file.block.size=$((128*1024*1024))
-        --conf spark.shuffle.s3.useSparkShuffleFetch=${USE_FALLBACK_FETCH}
-        --conf spark.storage.decommission.fallbackStorage.path=file:///nfs/
+        # --conf spark.shuffle.s3.useSparkShuffleFetch=${USE_FALLBACK_FETCH}
+        # --conf spark.storage.decommission.fallbackStorage.path=file:///nfs/
     )
 
     SPARK_KUBERNETES_TEMPLATES=(
@@ -95,6 +101,15 @@ fi
 
 if [[ "${USE_FALLBACK_FETCH}" == "true" ]]; then
     PROCESS_TAG="${PROCESS_TAG}-fallback"
+fi
+
+EXTRA_OPTIONS=(
+)
+if (( "${USE_TRANSFER_TO:-1}" == 0 )); then
+    PROCESS_TAG="${PROCESS_TAG}-transferTo_false"
+    EXTRA_OPTIONS=(
+        --conf spark.file.transferTo=false \
+    )
 fi
 
 USE_PROFILER=${USE_PROFILER:-0}
@@ -117,10 +132,12 @@ ${SPARK_HOME}/bin/spark-submit \
         --conf "spark.driver.extraJavaOptions=${DRIVER_JAVA_OPTIONS}" \
         --conf "spark.executor.extraJavaOptions=${EXECUTOR_JAVA_OPTIONS}" \
     \
-    --name ce-${PROCESS_TAG}-${INSTANCES}x${EXECUTOR_CPU}--${EXECUTOR_MEM} \
+    --name ce-${PROCESS_TAG}-bs${BLOCK_SIZE}MiB-${INSTANCES}x${EXECUTOR_CPU}--${EXECUTOR_MEM} \
     --conf spark.serializer="org.apache.spark.serializer.KryoSerializer" \
     --conf spark.kryoserializer.buffer=128mb \
     --conf spark.executor.instances=$INSTANCES \
+    "${EXTRA_OPTIONS[@]}" \
+    "${LOGGING[@]}" \
     "${SPARK_HADOOP_S3A_CONFIG[@]}" \
     "${SPARK_S3_SHUFFLE_CONFIG[@]}" \
     "${SPARK_KUBERNETES_TEMPLATES[@]}" \
