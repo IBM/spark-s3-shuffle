@@ -14,6 +14,14 @@ spec:
     image: will-be-overwritten
     resources:
       limits:
-        ephemeral-storage: 16G
+        ephemeral-storage: 32G
       requests:
-        ephemeral-storage: 16G
+        ephemeral-storage: 32G
+    volumeMounts:
+    - name: spark-logs
+      mountPath: /spark-logs
+  volumes:
+  - name: spark-logs
+    nfs:
+      server: 10.40.1.32
+      path: /spark-logs

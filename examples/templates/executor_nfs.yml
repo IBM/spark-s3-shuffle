@@ -20,8 +20,14 @@ spec:
     volumeMounts:
     - name: nfs
       mountPath: /nfs
+    - name: spark-logs
+      mountPath: /spark-logs
   volumes:
   - name: nfs
     nfs:
       server: 10.40.1.32
       path: /shuffle
+  - name: spark-logs
+    nfs:
+      server: 10.40.1.32
+      path: /spark-logs
