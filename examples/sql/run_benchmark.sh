@@ -51,12 +51,10 @@ SPARK_HADOOP_S3A_CONFIG=(
     --conf spark.hadoop.fs.s3a.path.style.access=true
     --conf spark.hadoop.fs.s3a.fast.upload=true
     --conf spark.hadoop.fs.s3a.block.size=$(($BLOCK_SIZE * 1024 * 1024))
+    --conf spark.hadoop.fs.s3a.fast.upload.buffer=array
 )
 
 SPARK_S3_SHUFFLE_CONFIG=(
-    --conf spark.hadoop.fs.s3a.access.key=${S3A_ACCESS_KEY}
-    --conf spark.hadoop.fs.s3a.secret.key=${S3A_SECRET_KEY}
-    --conf spark.hadoop.fs.s3a.endpoint=${S3A_ENDPOINT}
     --conf spark.shuffle.manager="org.apache.spark.shuffle.sort.S3ShuffleManager"
     --conf spark.shuffle.sort.io.plugin.class=org.apache.spark.shuffle.S3ShuffleDataIO
     --conf spark.shuffle.checksum.enabled=${CHECKSUM_ENABLED}
