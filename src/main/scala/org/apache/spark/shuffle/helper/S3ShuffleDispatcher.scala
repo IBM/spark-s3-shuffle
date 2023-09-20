@@ -46,6 +46,7 @@ class S3ShuffleDispatcher extends Logging {
   }
   private val rootDir_ = if (useSparkShuffleFetch) fallbackStoragePath else conf.get("spark.shuffle.s3.rootDir", defaultValue = "sparkS3shuffle/")
   val rootDir: String = if (rootDir_.endsWith("/")) rootDir_ else rootDir_ + "/"
+  val rootIsLocal: Boolean = URI.create(rootDir).getScheme == "file"
 
   // Optional
   val bufferSize: Int = conf.getInt("spark.shuffle.s3.bufferSize", defaultValue = 8 * 1024 * 1024)
