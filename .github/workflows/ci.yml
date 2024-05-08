@@ -10,7 +10,7 @@ on:
     - main
     tags:
     - v*
-            
+
 jobs:
   Build:
     strategy:
@@ -66,6 +66,12 @@ jobs:
         distribution: temurin
         java-version: 11
         cache: sbt
+    - name: Check formatting
+      shell: bash
+      run: |
+        echo "If either of these checks fail run: 'sbt scalafmtAll && sbt scalafmtSbt'"
+        sbt scalafmtSbtCheck
+        sbt scalafmtCheckAll
     - name: Test Default Shuffle Fetch
       shell: bash
       if: startsWith(matrix.scala, '2.12.')

@@ -16,7 +16,17 @@ Examples are available [here](./examples).
 ```bash
 sbt package  # Creates a minimal jar.
 sbt assembly # Creates the full assembly with all dependencies, notably hadoop cloud.
- ```
+```
+
+## Formatting Code
+
+Formatting is done with `scalafmt`. This can be triggered with the following configuration.
+
+```bash
+sbt scalafmtAll  # Format the source code
+sbt scalafmtSbt  # Format the SBT.
+```
+
 
 ## Required configuration
 
@@ -86,14 +96,14 @@ to Java > 11:
   --add-opens=java.base/java.io=ALL-UNNAMED
   --add-opens=java.base/java.net=ALL-UNNAMED
   --add-opens=java.base/java.nio=ALL-UNNAMED
-  --add-opens=java.base/java.util=ALL-UNNAMED 
-  --add-opens=java.base/java.util.concurrent=ALL-UNNAMED 
-  --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED 
-  --add-opens=java.base/sun.nio.ch=ALL-UNNAMED 
-  --add-opens=java.base/sun.nio.cs=ALL-UNNAMED 
+  --add-opens=java.base/java.util=ALL-UNNAMED
+  --add-opens=java.base/java.util.concurrent=ALL-UNNAMED
+  --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED
+  --add-opens=java.base/sun.nio.ch=ALL-UNNAMED
+  --add-opens=java.base/sun.nio.cs=ALL-UNNAMED
   --add-opens=java.base/sun.security.action=ALL-UNNAMED -
-  -add-opens=java.base/sun.util.calendar=ALL-UNNAMED 
-  --add-opens=java.security.jgss/sun.security.krb5=ALL-UNNAMED 
+  -add-opens=java.base/sun.util.calendar=ALL-UNNAMED
+  --add-opens=java.security.jgss/sun.security.krb5=ALL-UNNAMED
 ```
 
 ## Usage
@@ -119,7 +129,7 @@ Add the following lines to your Spark configuration:
     --conf spark.hadoop.fs.s3a.endpoint=S3A_ENDPOINT
     --conf spark.hadoop.fs.s3a.path.style.access=true
     --conf spark.hadoop.fs.s3a.fast.upload=true
-    
+
     --conf spark.shuffle.manager="org.apache.spark.shuffle.sort.S3ShuffleManager"
     --conf spark.shuffle.sort.io.plugin.class="org.apache.spark.shuffle.S3ShuffleDataIO"
     --conf spark.hadoop.fs.s3a.impl="org.apache.hadoop.fs.s3a.S3AFileSystem"
