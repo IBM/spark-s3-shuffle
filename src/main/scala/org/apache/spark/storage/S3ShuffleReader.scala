@@ -32,21 +32,21 @@ import org.apache.spark.util.CompletionIterator
 import org.apache.spark.util.collection.ExternalSorter
 import org.apache.spark.{InterruptibleIterator, SparkConf, SparkEnv, TaskContext}
 
-/**
- * This class was adapted from Apache Spark: BlockStoreShuffleReader.
- */
+/** This class was adapted from Apache Spark: BlockStoreShuffleReader.
+  */
 class S3ShuffleReader[K, C](
-                             conf: SparkConf,
-                             handle: BaseShuffleHandle[K, _, C],
-                             context: TaskContext,
-                             readMetrics: ShuffleReadMetricsReporter,
-                             startMapIndex: Int,
-                             endMapIndex: Int,
-                             startPartition: Int,
-                             endPartition: Int,
-                             serializerManager: SerializerManager = SparkEnv.get.serializerManager,
-                             shouldBatchFetch: Boolean
-                           ) extends ShuffleReader[K, C] with Logging {
+    conf: SparkConf,
+    handle: BaseShuffleHandle[K, _, C],
+    context: TaskContext,
+    readMetrics: ShuffleReadMetricsReporter,
+    startMapIndex: Int,
+    endMapIndex: Int,
+    startPartition: Int,
+    endPartition: Int,
+    serializerManager: SerializerManager = SparkEnv.get.serializerManager,
+    shouldBatchFetch: Boolean
+) extends ShuffleReader[K, C]
+    with Logging {
 
   private val dispatcher = S3ShuffleDispatcher.get
   private val dep = handle.dependency
@@ -64,29 +64,37 @@ class S3ShuffleReader[K, C](
     val doBatchFetch = shouldBatchFetch && serializerRelocatable &&
       (!compressed || codecConcatenation) && !ioEncryption
     if (shouldBatchFetch && !doBatchFetch) {
-      logDebug("The feature tag of continuous shuffle block fetching is set to true, but " +
-                 "we can not enable the feature because other conditions are not satisfied. " +
-                 s"Shuffle compress: $compressed, serializer relocatable: $serializerRelocatable, " +
-                 s"codec concatenation: $codecConcatenation, io encryption: $ioEncryption.")
+      logDebug(
+        "The feature tag of continuous shuffle block fetching is set to true, but " +
+          "we can not enable the feature because other conditions are not satisfied. " +
+          s"Shuffle compress: $compressed, serializer relocatable: $serializerRelocatable, " +
+          s"codec concatenation: $codecConcatenation, io encryption: $ioEncryption."
+      )
     }
     doBatchFetch
   }
 
   override def read(): Iterator[Product2[K, C]] = {
     val serializerInstance = dep.serializer.newInstance()
-    val blocks = computeShuffleBlocks(handle.shuffleId,
-                                      startMapIndex, endMapIndex,
-                                      startPartition, endPartition,
-                                      doBatchFetch = fetchContinousBlocksInBatch,
-                                      useBlockManager = dispatcher.useBlockManager)
+    val blocks = computeShuffleBlocks(
+      handle.shuffleId,
+      startMapIndex,
+      endMapIndex,
+      startPartition,
+      endPartition,
+      doBatchFetch = fetchContinousBlocksInBatch,
+      useBlockManager = dispatcher.useBlockManager
+    )
 
     val wrappedStreams = new S3ShuffleBlockIterator(blocks)
 
-    val filteredStream = wrappedStreams.filterNot(_._2.maxBytes == 0).map(f => {
-      readMetrics.incRemoteBytesRead(f._2.maxBytes) // increase byte count.
-      readMetrics.incRemoteBlocksFetched(1)
-      f
-    })
+    val filteredStream = wrappedStreams
+      .filterNot(_._2.maxBytes == 0)
+      .map(f => {
+        readMetrics.incRemoteBytesRead(f._2.maxBytes) // increase byte count.
+        readMetrics.incRemoteBlocksFetched(1)
+        f
+      })
     val recordIter = new S3BufferedPrefetchIterator(filteredStream, maxBufferSizeTask)
       .flatMap(s => {
         val stream = s._2
@@ -107,7 +115,8 @@ class S3ShuffleReader[K, C](
         readMetrics.incRecordsRead(1)
         record
       },
-      context.taskMetrics().mergeShuffleReadMetrics())
+      context.taskMetrics().mergeShuffleReadMetrics()
+    )
 
     // An interruptible iterator must be used here in order to support task cancellation
     val interruptibleIter = new InterruptibleIterator[(Any, Any)](context, metricIter)
@@ -141,7 +150,7 @@ class S3ShuffleReader[K, C](
 
     resultIter match {
       case _: InterruptibleIterator[Product2[K, C]] => resultIter
-      case _ =>
+      case _                                        =>
         // Use another interruptible iterator here to support task cancellation as aggregator
         // or(and) sorter may have consumed previous interruptible iterator.
         new InterruptibleIterator[Product2[K, C]](context, resultIter)
@@ -149,27 +158,40 @@ class S3ShuffleReader[K, C](
   }
 
   private def computeShuffleBlocks(
-                                    shuffleId: Int,
-                                    startMapIndex: Int,
-                                    endMapIndex: Int,
-                                    startPartition: Int,
-                                    endPartition: Int,
-                                    doBatchFetch: Boolean,
-                                    useBlockManager: Boolean
-                                  ): Iterator[BlockId] = {
+      shuffleId: Int,
+      startMapIndex: Int,
+      endMapIndex: Int,
+      startPartition: Int,
+      endPartition: Int,
+      doBatchFetch: Boolean,
+      useBlockManager: Boolean
+  ): Iterator[BlockId] = {
     if (useBlockManager) {
       val blocksByAddress = SparkEnv.get.mapOutputTracker.getMapSizesByExecutorId(
-        handle.shuffleId, startMapIndex, endMapIndex, startPartition, endPartition)
-      blocksByAddress.map(f => f._2.map(info => FetchBlockInfo(info._1, info._2, info._3)))
-                     .flatMap(info => ShuffleBlockFetcherIterator.mergeContinuousShuffleBlockIdsIfNeeded(info, doBatchFetch))
-                     .map(_.blockId)
+        handle.shuffleId,
+        startMapIndex,
+        endMapIndex,
+        startPartition,
+        endPartition
+      )
+      blocksByAddress
+        .map(f => f._2.map(info => FetchBlockInfo(info._1, info._2, info._3)))
+        .flatMap(info => ShuffleBlockFetcherIterator.mergeContinuousShuffleBlockIdsIfNeeded(info, doBatchFetch))
+        .map(_.blockId)
     } else {
-      val indices = dispatcher.listShuffleIndices(shuffleId).filter(
-        block => block.mapId >= startMapIndex && block.mapId < endMapIndex)
+      val indices = dispatcher
+        .listShuffleIndices(shuffleId)
+        .filter(block => block.mapId >= startMapIndex && block.mapId < endMapIndex)
       if (doBatchFetch || dispatcher.forceBatchFetch) {
         indices.map(block => ShuffleBlockBatchId(block.shuffleId, block.mapId, startPartition, endPartition)).toIterator
       } else {
-        indices.flatMap(block => Range(startPartition, endPartition).map(partition => ShuffleBlockId(block.shuffleId, block.mapId, partition))).toIterator
+        indices
+          .flatMap(block =>
+            Range(startPartition, endPartition).map(partition =>
+              ShuffleBlockId(block.shuffleId, block.mapId, partition)
+            )
+          )
+          .toIterator
       }
     }
   }

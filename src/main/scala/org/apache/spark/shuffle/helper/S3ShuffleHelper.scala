@@ -15,11 +15,10 @@ object S3ShuffleHelper extends Logging {
   private val cachedChecksums = new ConcurrentObjectMap[ShuffleChecksumBlockId, Array[Long]]()
   private val cachedArrayLengths = new ConcurrentObjectMap[ShuffleIndexBlockId, Array[Long]]()
 
-  /**
-   * Purge cached shuffle indices.
-   *
-   * @param shuffleIndex
-   */
+  /** Purge cached shuffle indices.
+    *
+    * @param shuffleIndex
+    */
   def purgeCachedDataForShuffle(shuffleIndex: Int): Unit = {
     if (dispatcher.cachePartitionLengths) {
       val filter = (block: ShuffleIndexBlockId) => block.shuffleId == shuffleIndex
@@ -36,13 +35,12 @@ object S3ShuffleHelper extends Logging {
     cachedArrayLengths.clear()
   }
 
-  /**
-   * Write partitionLengths for block with shuffleId and mapId at 0.
-   *
-   * @param shuffleId
-   * @param mapId
-   * @param partitionLengths
-   */
+  /** Write partitionLengths for block with shuffleId and mapId at 0.
+    *
+    * @param shuffleId
+    * @param mapId
+    * @param partitionLengths
+    */
   def writePartitionLengths(shuffleId: Int, mapId: Long, partitionLengths: Array[Long]): Unit = {
     val accumulated = Array[Long](0) ++ partitionLengths.tail.scan(partitionLengths.head)(_ + _)
     writeArrayAsBlock(ShuffleIndexBlockId(shuffleId, mapId, NOOP_REDUCE_ID), accumulated)
@@ -60,23 +58,21 @@ object S3ShuffleHelper extends Logging {
     out.close()
   }
 
-  /**
-   * Get the cached partition length for shuffle index at shuffleId and mapId
-   *
-   * @param shuffleId
-   * @param mapId
-   * @return
-   */
+  /** Get the cached partition length for shuffle index at shuffleId and mapId
+    *
+    * @param shuffleId
+    * @param mapId
+    * @return
+    */
   def getPartitionLengths(shuffleId: Int, mapId: Long): Array[Long] = {
     getPartitionLengths(ShuffleIndexBlockId(shuffleId, mapId, NOOP_REDUCE_ID))
   }
 
-  /**
-   * Get the cached partition length for the shuffleIndex block.
-   *
-   * @param blockId
-   * @return
-   */
+  /** Get the cached partition length for the shuffleIndex block.
+    *
+    * @param blockId
+    * @return
+    */
   def getPartitionLengths(blockId: ShuffleIndexBlockId): Array[Long] = {
     if (dispatcher.cachePartitionLengths) {
       return cachedArrayLengths.getOrElsePut(blockId, readBlockAsArray)
@@ -109,7 +105,9 @@ object S3ShuffleHelper extends Logging {
   private def readBlockAsArray(blockId: BlockId): Array[Long] = {
     val stat = dispatcher.getFileStatusCached(blockId)
     val fileLength = stat.getLen.toInt
-    val input = new DataInputStream(new BufferedInputStream(dispatcher.openBlock(blockId), math.min(fileLength, dispatcher.bufferSize)))
+    val input = new DataInputStream(
+      new BufferedInputStream(dispatcher.openBlock(blockId), math.min(fileLength, dispatcher.bufferSize))
+    )
     val count = fileLength / 8
     if (fileLength % 8 != 0) {
       throw new SparkException(s"Unexpected file length when reading ${blockId.name}")

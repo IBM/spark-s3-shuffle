@@ -19,19 +19,18 @@ import java.nio.ByteBuffer
 import java.nio.channels.{Channels, WritableByteChannel}
 import java.util.Optional
 
-/**
- * Implements the ShuffleMapOutputWriter interface. It stores the shuffle output in one
- * shuffle block.
- *
- * This file is based on Spark "LocalDiskShuffleMapOutputWriter.java".
- */
+/** Implements the ShuffleMapOutputWriter interface. It stores the shuffle output in one shuffle block.
+  *
+  * This file is based on Spark "LocalDiskShuffleMapOutputWriter.java".
+  */
 
 class S3ShuffleMapOutputWriter(
-                                conf: SparkConf,
-                                shuffleId: Int,
-                                mapId: Long,
-                                numPartitions: Int,
-                              ) extends ShuffleMapOutputWriter with Logging {
+    conf: SparkConf,
+    shuffleId: Int,
+    mapId: Long,
+    numPartitions: Int
+) extends ShuffleMapOutputWriter
+    with Logging {
   val dispatcher = S3ShuffleDispatcher.get
 
   /* Target block for writing */
@@ -44,7 +43,8 @@ class S3ShuffleMapOutputWriter(
   def initStream(): Unit = {
     if (stream == null) {
       stream = dispatcher.createBlock(shuffleBlock)
-      bufferedStream = new S3MeasureOutputStream(new BufferedOutputStream(stream, dispatcher.bufferSize), shuffleBlock.name)
+      bufferedStream =
+        new S3MeasureOutputStream(new BufferedOutputStream(stream, dispatcher.bufferSize), shuffleBlock.name)
     }
   }
 
@@ -59,10 +59,11 @@ class S3ShuffleMapOutputWriter(
   private var totalBytesWritten: Long = 0
   private var lastPartitionWriterId: Int = -1
 
-  /**
-   * @param reducePartitionId Monotonically increasing, as per contract in ShuffleMapOutputWriter.
-   * @return An instance of the ShufflePartitionWriter exposing the single output stream.
-   */
+  /** @param reducePartitionId
+    *   Monotonically increasing, as per contract in ShuffleMapOutputWriter.
+    * @return
+    *   An instance of the ShufflePartitionWriter exposing the single output stream.
+    */
   override def getPartitionWriter(reducePartitionId: Int): ShufflePartitionWriter = {
     if (reducePartitionId <= lastPartitionWriterId) {
       throw new RuntimeException("Precondition: Expect a monotonically increasing reducePartitionId.")
@@ -81,19 +82,21 @@ class S3ShuffleMapOutputWriter(
     new S3ShufflePartitionWriter(reducePartitionId)
   }
 
-  /**
-   * Close all writers and the shuffle block.
-   *
-   * @param checksums Ignored.
-   * @return
-   */
+  /** Close all writers and the shuffle block.
+    *
+    * @param checksums
+    *   Ignored.
+    * @return
+    */
   override def commitAllPartitions(checksums: Array[Long]): MapOutputCommitMessage = {
     if (bufferedStream != null) {
       bufferedStream.flush()
     }
     if (stream != null) {
       if (stream.getPos != totalBytesWritten) {
-        throw new RuntimeException(f"S3ShuffleMapOutputWriter: Unexpected output length ${stream.getPos}, expected: ${totalBytesWritten}.")
+        throw new RuntimeException(
+          f"S3ShuffleMapOutputWriter: Unexpected output length ${stream.getPos}, expected: ${totalBytesWritten}."
+        )
       }
     }
     if (bufferedStreamAsChannel != null) {
@@ -198,8 +201,7 @@ class S3ShuffleMapOutputWriter(
     }
   }
 
-  private class S3ShufflePartitionWriterChannel(reduceId: Int)
-    extends WritableByteChannelWrapper {
+  private class S3ShufflePartitionWriterChannel(reduceId: Int) extends WritableByteChannelWrapper {
     private val partChannel = new S3PartitionWritableByteChannel(bufferedStreamAsChannel)
 
     override def channel(): WritableByteChannel = {
@@ -216,8 +218,7 @@ class S3ShuffleMapOutputWriter(
     }
   }
 
-  private class S3PartitionWritableByteChannel(channel: WritableByteChannel)
-    extends WritableByteChannel {
+  private class S3PartitionWritableByteChannel(channel: WritableByteChannel) extends WritableByteChannel {
 
     private var count: Long = 0
 
@@ -229,8 +230,7 @@ class S3ShuffleMapOutputWriter(
       channel.isOpen()
     }
 
-    override def close(): Unit = {
-    }
+    override def close(): Unit = {}
 
     override def write(x: ByteBuffer): Int = {
       var c = 0

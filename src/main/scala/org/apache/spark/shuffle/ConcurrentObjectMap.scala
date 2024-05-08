@@ -20,13 +20,17 @@ class ConcurrentObjectMap[K, V] {
   }
 
   def getOrElsePut(key: K, op: K => V): V = {
-    val l = valueLocks.get(key).getOrElse({
-      lock.synchronized {
-        valueLocks.getOrElseUpdate(key, {
-          new Object()
-        })
-      }
-    })
+    val l = valueLocks
+      .get(key)
+      .getOrElse({
+        lock.synchronized {
+          valueLocks.getOrElseUpdate(
+            key, {
+              new Object()
+            }
+          )
+        }
+      })
     l.synchronized {
       return map.getOrElseUpdate(key, op(key))
     }

@@ -4,7 +4,9 @@ import org.apache.spark.internal.Logging
 
 import java.io.{BufferedInputStream, EOFException, InputStream}
 
-class S3BufferedInputStreamAdaptor(inputStream: InputStream, bufferSize: Int, onClose: (Int) => Unit) extends InputStream with Logging {
+class S3BufferedInputStreamAdaptor(inputStream: InputStream, bufferSize: Int, onClose: (Int) => Unit)
+    extends InputStream
+    with Logging {
 
   private var bufferedStream = new BufferedInputStream(inputStream, bufferSize)
 
@@ -23,7 +25,6 @@ class S3BufferedInputStreamAdaptor(inputStream: InputStream, bufferSize: Int, on
       throw new EOFException("Stream is closed")
     }
   }
-
 
   def read(): Int = synchronized {
     checkOpen()
