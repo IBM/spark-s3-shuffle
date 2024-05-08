@@ -15,15 +15,17 @@ import org.apache.spark.util.Utils
 import java.io.{File, FileInputStream}
 import java.nio.file.{Files, Path}
 
-class S3SingleSpillShuffleMapOutputWriter(shuffleId: Int, mapId: Long) extends SingleSpillShuffleMapOutputWriter with Logging {
+class S3SingleSpillShuffleMapOutputWriter(shuffleId: Int, mapId: Long)
+    extends SingleSpillShuffleMapOutputWriter
+    with Logging {
 
   private lazy val dispatcher = S3ShuffleDispatcher.get
 
   override def transferMapSpillFile(
-                                     mapSpillFile: File,
-                                     partitionLengths: Array[Long],
-                                     checksums: Array[Long]
-                                   ): Unit = {
+      mapSpillFile: File,
+      partitionLengths: Array[Long],
+      checksums: Array[Long]
+  ): Unit = {
     val block = ShuffleDataBlockId(shuffleId, mapId, IndexShuffleBlockResolver.NOOP_REDUCE_ID)
 
     if (dispatcher.rootIsLocal) {
@@ -44,8 +46,10 @@ class S3SingleSpillShuffleMapOutputWriter(shuffleId: Int, mapId: Long) extends S
       val sAt = tc.stageAttemptNumber()
       val t = timings / 1000000
       val bw = bytes.toDouble / (t.toDouble / 1000) / (1024 * 1024)
-      logInfo(s"Statistics: Stage ${sId}.${sAt} TID ${tc.taskAttemptId()} -- " +
-                s"Writing ${block.name} ${bytes} took ${t} ms (${bw} MiB/s)")
+      logInfo(
+        s"Statistics: Stage ${sId}.${sAt} TID ${tc.taskAttemptId()} -- " +
+          s"Writing ${block.name} ${bytes} took ${t} ms (${bw} MiB/s)"
+      )
     } else {
       // Copy using a stream.
       val in = new FileInputStream(mapSpillFile)

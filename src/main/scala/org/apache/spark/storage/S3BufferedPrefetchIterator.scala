@@ -13,7 +13,9 @@ import java.io.{BufferedInputStream, InputStream}
 import java.util
 import java.util.concurrent.atomic.AtomicLong
 
-class S3BufferedPrefetchIterator(iter: Iterator[(BlockId, S3ShuffleBlockStream)], maxBufferSize: Long) extends Iterator[(BlockId, InputStream)] with Logging {
+class S3BufferedPrefetchIterator(iter: Iterator[(BlockId, S3ShuffleBlockStream)], maxBufferSize: Long)
+    extends Iterator[(BlockId, InputStream)]
+    with Logging {
   private val startTime = System.nanoTime()
 
   @volatile private var memoryUsage: Long = 0
@@ -123,8 +125,7 @@ class S3BufferedPrefetchIterator(iter: Iterator[(BlockId, S3ShuffleBlockStream)]
         if (memoryUsage + bsize > maxBufferSize) {
           try {
             wait()
-          }
-          catch {
+          } catch {
             case _: InterruptedException =>
           }
         } else {
@@ -173,10 +174,12 @@ class S3BufferedPrefetchIterator(iter: Iterator[(BlockId, S3ShuffleBlockStream)]
       val bs = bR / r
       // Threads
       val ta = desiredActiveThreads.get()
-      logInfo(s"Statistics: Stage ${sId}.${sAt} TID ${tc.taskAttemptId()} -- " +
-                s"${bR} bytes, ${tW} ms waiting (${atW} avg), " +
-                s"${tP} ms prefetching (avg: ${atP} ms - ${bs} block size - ${bW} MiB/s). " +
-                s"Total: ${tR} ms - ${wPer}% waiting. ${ta} active threads.")
+      logInfo(
+        s"Statistics: Stage ${sId}.${sAt} TID ${tc.taskAttemptId()} -- " +
+          s"${bR} bytes, ${tW} ms waiting (${atW} avg), " +
+          s"${tP} ms prefetching (avg: ${atP} ms - ${bs} block size - ${bW} MiB/s). " +
+          s"Total: ${tR} ms - ${wPer}% waiting. ${ta} active threads."
+      )
     } catch {
       case e: Exception => logError(f"Unable to print statistics: ${e.getMessage}.")
     }

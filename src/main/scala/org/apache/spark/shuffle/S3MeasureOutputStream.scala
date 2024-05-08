@@ -11,7 +11,6 @@ class S3MeasureOutputStream(var out: OutputStream, label: String = "") extends O
   private var timings: Long = 0
   private var bytes: Long = 0
 
-
   private def checkOpen(): Unit = {
     if (!isOpen) {
       throw new IOException("The stream is already closed!")
@@ -58,7 +57,9 @@ class S3MeasureOutputStream(var out: OutputStream, label: String = "") extends O
     val sAt = tc.stageAttemptNumber()
     val t = timings / 1000000
     val bw = bytes.toDouble / (t.toDouble / 1000) / (1024 * 1024)
-    logInfo(s"Statistics: Stage ${sId}.${sAt} TID ${tc.taskAttemptId()} -- " +
-              s"Writing ${label} ${bytes} took ${t} ms (${bw} MiB/s)")
+    logInfo(
+      s"Statistics: Stage ${sId}.${sAt} TID ${tc.taskAttemptId()} -- " +
+        s"Writing ${label} ${bytes} took ${t} ms (${bw} MiB/s)"
+    )
   }
 }

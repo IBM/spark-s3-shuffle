@@ -12,17 +12,16 @@ import org.apache.spark.shuffle.helper.S3ShuffleHelper
 import java.io.InputStream
 import java.util.zip.Checksum
 
-/**
- * Validates checksum stored for blockId on stream with checksumAlgorithm.
- */
-class S3ChecksumValidationStream(
-                                  blockId: BlockId,
-                                  stream: InputStream,
-                                  checksumAlgorithm: String) extends InputStream with Logging {
+/** Validates checksum stored for blockId on stream with checksumAlgorithm.
+  */
+class S3ChecksumValidationStream(blockId: BlockId, stream: InputStream, checksumAlgorithm: String)
+    extends InputStream
+    with Logging {
 
   private val (shuffleId: Int, mapId: Long, startReduceId: Int, endReduceId: Int) = blockId match {
     case ShuffleBlockId(shuffleId, mapId, reduceId) => (shuffleId, mapId, reduceId, reduceId + 1)
-    case ShuffleBlockBatchId(shuffleId, mapId, startReduceId, endReduceId) => (shuffleId, mapId, startReduceId, endReduceId)
+    case ShuffleBlockBatchId(shuffleId, mapId, startReduceId, endReduceId) =>
+      (shuffleId, mapId, startReduceId, endReduceId)
     case _ => throw new SparkException(s"S3ChecksumValidationStream does not support block type ${blockId}")
   }
 
@@ -33,7 +32,7 @@ class S3ChecksumValidationStream(
   private var pos: Long = 0
   private var reduceId: Int = startReduceId
 
-  private var blockLength: Long = lengths(reduceId+1) - lengths(reduceId)
+  private var blockLength: Long = lengths(reduceId + 1) - lengths(reduceId)
 
   private def eof(): Boolean = reduceId > endReduceId
 
@@ -77,7 +76,7 @@ class S3ChecksumValidationStream(
     pos = 0
     reduceId += 1
     if (reduceId < endReduceId) {
-      blockLength = lengths(reduceId+1) - lengths(reduceId)
+      blockLength = lengths(reduceId + 1) - lengths(reduceId)
       if (blockLength == 0) {
         validateChecksum()
       }

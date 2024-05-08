@@ -62,9 +62,10 @@ class S3ShuffleManagerTest {
     val sc = new SparkContext(conf)
     try {
       //  Test copied from: src/test/scala/org/apache/spark/shuffle/ShuffleDependencySuite.scala
-      val rdd = sc.parallelize(1 to 5, 4)
-                  .map(key => (KeyClass(), ValueClass()))
-                  .groupByKey()
+      val rdd = sc
+        .parallelize(1 to 5, 4)
+        .map(key => (KeyClass(), ValueClass()))
+        .groupByKey()
       val dep = rdd.dependencies.head.asInstanceOf[ShuffleDependency[_, _, _]]
       assert(!dep.mapSideCombine, "Test requires that no map-side aggregator is defined")
       assert(dep.keyClassName == classOf[KeyClass].getName)
@@ -83,12 +84,13 @@ class S3ShuffleManagerTest {
       val numValues = 10000
       val numMaps = 3
 
-      val rdd = sc.parallelize(0 until numValues, numMaps)
-                  .map(t => {
-                    val rand = scala.util.Random
-                    (t) -> rand.nextInt(numValues)
-                  })
-                  .sortBy(_._2, ascending = true)
+      val rdd = sc
+        .parallelize(0 until numValues, numMaps)
+        .map(t => {
+          val rand = scala.util.Random
+          (t) -> rand.nextInt(numValues)
+        })
+        .sortBy(_._2, ascending = true)
       val result = rdd.collect()
 
       var previous = result(0)._2
@@ -109,13 +111,12 @@ class S3ShuffleManagerTest {
     try {
       val numValuesPerPartition = 100000
       val numPartitions = 20
-      val dataset = sc.parallelize(0 until numPartitions, numPartitions).mapPartitionsWithIndex {
-        case (index, _) =>
-          Iterator.tabulate(numValuesPerPartition) { offset =>
-            val key = offset
-            val value = offset*index
-            (key, value*2)
-          }
+      val dataset = sc.parallelize(0 until numPartitions, numPartitions).mapPartitionsWithIndex { case (index, _) =>
+        Iterator.tabulate(numValuesPerPartition) { offset =>
+          val key = offset
+          val value = offset * index
+          (key, value * 2)
+        }
       }
 
       def convert_value(v: Int) = {
@@ -156,14 +157,13 @@ class S3ShuffleManagerTest {
       val numValuesPerPartition = 10000
       val numPartitions = 5
 
-      val dataset = sc.parallelize(0 until numPartitions).mapPartitionsWithIndex {
-        case (index, _) =>
-          val rand = scala.util.Random
-          Iterator.tabulate(numValuesPerPartition) { offset =>
-            val key = rand.nextInt()
-            val value = rand.nextInt()
-            (key, value)
-          }
+      val dataset = sc.parallelize(0 until numPartitions).mapPartitionsWithIndex { case (index, _) =>
+        val rand = scala.util.Random
+        Iterator.tabulate(numValuesPerPartition) { offset =>
+          val key = rand.nextInt()
+          val value = rand.nextInt()
+          (key, value)
+        }
       }
       val sorted = dataset.sortByKey(true, numPartitions - 1)
       val result = sorted.collect()
@@ -195,12 +195,14 @@ class S3ShuffleManagerTest {
     val metrics = stageMetrics.aggregateStageMetrics(s"spark_measure_test_${timestamp}")
     // get all of the stats
     val (runTime, bytesRead, recordsRead, bytesWritten, recordsWritten) =
-      metrics.select("elapsedTime", "bytesRead",
-                     "recordsRead", "bytesWritten", "recordsWritten")
-             .take(1)
-             .map(r => (r.getLong(0), r.getLong(1), r.getLong(2), r.getLong(3),
-               r.getLong(4))).head
-    println(f"Elapsed: ${runTime}, bytesRead: ${bytesRead}, recordsRead: ${recordsRead}, bytesWritten ${bytesWritten}, recordsWritten: ${recordsWritten}")
+      metrics
+        .select("elapsedTime", "bytesRead", "recordsRead", "bytesWritten", "recordsWritten")
+        .take(1)
+        .map(r => (r.getLong(0), r.getLong(1), r.getLong(2), r.getLong(3), r.getLong(4)))
+        .head
+    println(
+      f"Elapsed: ${runTime}, bytesRead: ${bytesRead}, recordsRead: ${recordsRead}, bytesWritten ${bytesWritten}, recordsWritten: ${recordsWritten}"
+    )
     spark.stop()
     spark.close()
   }
@@ -213,9 +215,10 @@ class S3ShuffleManagerTest {
       val numMaps = 3
       val numPartitions = 5
 
-      val rdd = sc.parallelize(0 until numValues, numMaps)
-                  .map(t => ((t / 2) -> (t * 2).longValue()))
-                  .foldByKey(0, numPartitions)((v1, v2) => v1 + v2)
+      val rdd = sc
+        .parallelize(0 until numValues, numMaps)
+        .map(t => ((t / 2) -> (t * 2).longValue()))
+        .foldByKey(0, numPartitions)((v1, v2) => v1 + v2)
       val result = rdd.collect()
 
       assert(result.length === numValues / 2)

@@ -19,4 +19,3 @@ class S3ShuffleWriter[K, V](writer: ShuffleWriter[K, V]) extends ShuffleWriter[K
 
   override def getPartitionLengths(): Array[Long] = writer.getPartitionLengths()
 }
-

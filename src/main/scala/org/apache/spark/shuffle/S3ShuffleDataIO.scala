@@ -36,9 +36,9 @@ class S3ShuffleDataIO(sparkConf: SparkConf) extends ShuffleDataIO {
     }
 
     override def createSingleFileMapOutputWriter(
-                                                  shuffleId: Int,
-                                                  mapId: Long
-                                                ): Optional[SingleSpillShuffleMapOutputWriter] = {
+        shuffleId: Int,
+        mapId: Long
+    ): Optional[SingleSpillShuffleMapOutputWriter] = {
       Optional.of(new S3SingleSpillShuffleMapOutputWriter(shuffleId, mapId))
     }
   }
@@ -67,4 +67,3 @@ class S3ShuffleDataIO(sparkConf: SparkConf) extends ShuffleDataIO {
     }
   }
 }
-

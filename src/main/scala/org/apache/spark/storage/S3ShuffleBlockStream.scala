@@ -11,16 +11,16 @@ import org.apache.spark.shuffle.helper.S3ShuffleDispatcher
 
 import java.io.{IOException, InputStream}
 
-/**
- * InputStream that reads data from a shuffleBlock, mapId and exposes an InputStream from startReduceId to endReduceId.
- */
+/** InputStream that reads data from a shuffleBlock, mapId and exposes an InputStream from startReduceId to endReduceId.
+  */
 class S3ShuffleBlockStream(
-                            shuffleId: Int,
-                            mapId: Long,
-                            startReduceId: Int,
-                            endReduceId: Int,
-                            accumulatedPositions: Array[Long],
-                          ) extends InputStream with Logging {
+    shuffleId: Int,
+    mapId: Long,
+    startReduceId: Int,
+    endReduceId: Int,
+    accumulatedPositions: Array[Long]
+) extends InputStream
+    with Logging {
   private lazy val dispatcher = S3ShuffleDispatcher.get
   private lazy val blockId = ShuffleDataBlockId(shuffleId, mapId, NOOP_REDUCE_ID)
   private lazy val stream = {

@@ -8,8 +8,8 @@ package org.apache.spark.storage
 import org.apache.spark.shuffle.helper.{S3ShuffleDispatcher, S3ShuffleHelper}
 
 class S3ShuffleBlockIterator(
-                              shuffleBlocks: Iterator[BlockId],
-                            ) extends Iterator[(BlockId, S3ShuffleBlockStream)] {
+    shuffleBlocks: Iterator[BlockId]
+) extends Iterator[(BlockId, S3ShuffleBlockStream)] {
 
   private val dispatcher = S3ShuffleDispatcher.get
 
@@ -30,9 +30,8 @@ class S3ShuffleBlockIterator(
     do {
       val nextBlock = shuffleBlocks.next()
 
-      /**
-       * Ignore missing index files if `alwaysCreateIndex` is configured.
-       */
+      /** Ignore missing index files if `alwaysCreateIndex` is configured.
+        */
       try {
         val stream = nextBlock match {
           case ShuffleBlockId(shuffleId, mapId, reduceId) =>

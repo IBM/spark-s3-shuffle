@@ -20,9 +20,8 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
 
-/**
- * Helper class that configures Hadoop FS.
- */
+/** Helper class that configures Hadoop FS.
+  */
 class S3ShuffleDispatcher extends Logging {
   val executorId: String = SparkEnv.get.executorId
   val conf: SparkConf = SparkEnv.get.conf
@@ -40,11 +39,15 @@ class S3ShuffleDispatcher extends Logging {
   val useSparkShuffleFetch: Boolean = conf.getBoolean("spark.shuffle.s3.useSparkShuffleFetch", defaultValue = false)
   private val fallbackStoragePath_ = conf.get(STORAGE_DECOMMISSION_FALLBACK_STORAGE_PATH)
   val fallbackStoragePath = if (fallbackStoragePath_.isEmpty && useSparkShuffleFetch) {
-    throw new SparkException(s"spark.shuffle.s3.useSparkShuffleFetch is set, but no ${STORAGE_DECOMMISSION_FALLBACK_STORAGE_PATH}")
+    throw new SparkException(
+      s"spark.shuffle.s3.useSparkShuffleFetch is set, but no ${STORAGE_DECOMMISSION_FALLBACK_STORAGE_PATH}"
+    )
   } else {
     fallbackStoragePath_.getOrElse(s"${STORAGE_DECOMMISSION_FALLBACK_STORAGE_PATH} is not set.")
   }
-  private val rootDir_ = if (useSparkShuffleFetch) fallbackStoragePath else conf.get("spark.shuffle.s3.rootDir", defaultValue = "sparkS3shuffle/")
+  private val rootDir_ =
+    if (useSparkShuffleFetch) fallbackStoragePath
+    else conf.get("spark.shuffle.s3.rootDir", defaultValue = "sparkS3shuffle/")
   val rootDir: String = if (rootDir_.endsWith("/")) rootDir_ else rootDir_ + "/"
   val rootIsLocal: Boolean = URI.create(rootDir).getScheme == "file"
 
@@ -66,9 +69,11 @@ class S3ShuffleDispatcher extends Logging {
   val checksumAlgorithm: String = SparkEnv.get.conf.get(config.SHUFFLE_CHECKSUM_ALGORITHM)
   val checksumEnabled: Boolean = SparkEnv.get.conf.get(config.SHUFFLE_CHECKSUM_ENABLED)
 
-  val fs: FileSystem = FileSystem.get(URI.create(rootDir), {
-    SparkHadoopUtil.newConfiguration(conf)
-  })
+  val fs: FileSystem = FileSystem.get(
+    URI.create(rootDir), {
+      SparkHadoopUtil.newConfiguration(conf)
+    }
+  )
 
   val canSetReadahead = fs.hasPathCapability(new Path(rootDir), StreamCapabilities.READAHEAD)
 
@@ -97,16 +102,18 @@ class S3ShuffleDispatcher extends Logging {
   logInfo(s"- ${config.SHUFFLE_CHECKSUM_ENABLED.key}=${checksumEnabled}")
 
   def removeRoot(): Boolean = {
-    Range(0, folderPrefixes).map(idx => {
-      Future {
-        val prefix = f"${rootDir}${idx}/${appId}"
-        try {
-          fs.delete(new Path(prefix), true)
-        } catch {
-          case _: IOException => logDebug(s"Unable to delete prefix ${prefix}")
+    Range(0, folderPrefixes)
+      .map(idx => {
+        Future {
+          val prefix = f"${rootDir}${idx}/${appId}"
+          try {
+            fs.delete(new Path(prefix), true)
+          } catch {
+            case _: IOException => logDebug(s"Unable to delete prefix ${prefix}")
+          }
         }
-      }
-    }).map(Await.result(_, Duration.Inf))
+      })
+      .map(Await.result(_, Duration.Inf))
     true
   }
 
@@ -124,10 +131,10 @@ class S3ShuffleDispatcher extends Logging {
     }
     if (useSparkShuffleFetch) {
       blockId match {
-        case ShuffleDataBlockId(_, _, _) =>
-        case ShuffleIndexBlockId(_, _, _) =>
+        case ShuffleDataBlockId(_, _, _)     =>
+        case ShuffleIndexBlockId(_, _, _)    =>
         case ShuffleChecksumBlockId(_, _, _) =>
-        case _ => throw new SparkException(s"Unsupported block id type: ${blockId.name}")
+        case _                               => throw new SparkException(s"Unsupported block id type: ${blockId.name}")
       }
       val hash = JavaUtils.nonNegativeHash(blockId.name)
       return new Path(f"${rootDir}${appId}/${shuffleId}/${hash}/${blockId.name}")
@@ -146,35 +153,40 @@ class S3ShuffleDispatcher extends Logging {
         name.endsWith(".index")
       }
     }
-    Range(0, folderPrefixes).map(idx => {
-      Future {
-        val path = new Path(f"${rootDir}${idx}/${appId}/${shuffleId}/")
-        try {
-          fs.listStatus(path, shuffleIndexFilter).map(v => {
-            BlockId.apply(v.getPath.getName).asInstanceOf[ShuffleIndexBlockId]
-          })
-        } catch {
-          case _: IOException => Array.empty[ShuffleIndexBlockId]
+    Range(0, folderPrefixes)
+      .map(idx => {
+        Future {
+          val path = new Path(f"${rootDir}${idx}/${appId}/${shuffleId}/")
+          try {
+            fs.listStatus(path, shuffleIndexFilter)
+              .map(v => {
+                BlockId.apply(v.getPath.getName).asInstanceOf[ShuffleIndexBlockId]
+              })
+          } catch {
+            case _: IOException => Array.empty[ShuffleIndexBlockId]
+          }
         }
-      }
-    }).flatMap(Await.result(_, Duration.Inf)).toArray
+      })
+      .flatMap(Await.result(_, Duration.Inf))
+      .toArray
   }
 
   def removeShuffle(shuffleId: Int): Unit = {
-    Range(0, folderPrefixes).map(idx => {
-      val path = new Path(f"${rootDir}${idx}/${appId}/${shuffleId}/")
-      Future {
-        fs.delete(path, true)
-      }
-    }).foreach(Await.result(_, Duration.Inf))
+    Range(0, folderPrefixes)
+      .map(idx => {
+        val path = new Path(f"${rootDir}${idx}/${appId}/${shuffleId}/")
+        Future {
+          fs.delete(path, true)
+        }
+      })
+      .foreach(Await.result(_, Duration.Inf))
   }
 
-  /**
-   * Open a block for reading.
-   *
-   * @param blockId
-   * @return
-   */
+  /** Open a block for reading.
+    *
+    * @param blockId
+    * @return
+    */
   def openBlock(blockId: BlockId): FSDataInputStream = {
     val status = getFileStatusCached(blockId)
     val builder = fs.openFile(status.getPath).withFileStatus(status)
@@ -188,41 +200,44 @@ class S3ShuffleDispatcher extends Logging {
   private val cachedFileStatus = new ConcurrentObjectMap[BlockId, FileStatus]()
 
   def getFileStatusCached(blockId: BlockId): FileStatus = {
-    cachedFileStatus.getOrElsePut(blockId, (value: BlockId) => {
-      fs.getFileStatus(getPath(value))
-    })
+    cachedFileStatus.getOrElsePut(
+      blockId,
+      (value: BlockId) => {
+        fs.getFileStatus(getPath(value))
+      }
+    )
   }
 
   def closeCachedBlocks(shuffleIndex: Int): Unit = {
-    val filter = (blockId: BlockId) => blockId match {
-      case RDDBlockId(_, _) => false
-      case ShuffleBlockId(shuffleId, _, _) => shuffleId == shuffleIndex
-      case ShuffleBlockBatchId(shuffleId, _, _, _) => shuffleId == shuffleIndex
-      case ShuffleBlockChunkId(shuffleId, _, _, _) => shuffleId == shuffleIndex
-      case ShuffleDataBlockId(shuffleId, _, _) => shuffleId == shuffleIndex
-      case ShuffleIndexBlockId(shuffleId, _, _) => shuffleId == shuffleIndex
-      case ShuffleChecksumBlockId(shuffleId, _, _) => shuffleId == shuffleIndex
-      case ShufflePushBlockId(shuffleId, _, _, _) => shuffleId == shuffleIndex
-      case ShuffleMergedBlockId(shuffleId, _, _) => shuffleId == shuffleIndex
-      case ShuffleMergedDataBlockId(_, shuffleId, _, _) => shuffleId == shuffleIndex
-      case ShuffleMergedIndexBlockId(_, shuffleId, _, _) => shuffleId == shuffleIndex
-      case ShuffleMergedMetaBlockId(_, shuffleId, _, _) => shuffleId == shuffleIndex
-      case BroadcastBlockId(_, _) => false
-      case TaskResultBlockId(_) => false
-      case StreamBlockId(_, _) => false
-      case TempLocalBlockId(_) => false
-      case TempShuffleBlockId(_) => false
-      case TestBlockId(_) => false
-    }
+    val filter = (blockId: BlockId) =>
+      blockId match {
+        case RDDBlockId(_, _)                              => false
+        case ShuffleBlockId(shuffleId, _, _)               => shuffleId == shuffleIndex
+        case ShuffleBlockBatchId(shuffleId, _, _, _)       => shuffleId == shuffleIndex
+        case ShuffleBlockChunkId(shuffleId, _, _, _)       => shuffleId == shuffleIndex
+        case ShuffleDataBlockId(shuffleId, _, _)           => shuffleId == shuffleIndex
+        case ShuffleIndexBlockId(shuffleId, _, _)          => shuffleId == shuffleIndex
+        case ShuffleChecksumBlockId(shuffleId, _, _)       => shuffleId == shuffleIndex
+        case ShufflePushBlockId(shuffleId, _, _, _)        => shuffleId == shuffleIndex
+        case ShuffleMergedBlockId(shuffleId, _, _)         => shuffleId == shuffleIndex
+        case ShuffleMergedDataBlockId(_, shuffleId, _, _)  => shuffleId == shuffleIndex
+        case ShuffleMergedIndexBlockId(_, shuffleId, _, _) => shuffleId == shuffleIndex
+        case ShuffleMergedMetaBlockId(_, shuffleId, _, _)  => shuffleId == shuffleIndex
+        case BroadcastBlockId(_, _)                        => false
+        case TaskResultBlockId(_)                          => false
+        case StreamBlockId(_, _)                           => false
+        case TempLocalBlockId(_)                           => false
+        case TempShuffleBlockId(_)                         => false
+        case TestBlockId(_)                                => false
+      }
     cachedFileStatus.remove(filter, _)
   }
 
-  /**
-   * Open a block for writing.
-   *
-   * @param blockId
-   * @return
-   */
+  /** Open a block for writing.
+    *
+    * @param blockId
+    * @return
+    */
   def createBlock(blockId: BlockId): FSDataOutputStream = {
     fs.create(getPath(blockId))
   }
