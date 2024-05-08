@@ -24,24 +24,25 @@ buildInfoKeys ++= Seq[BuildInfoKey](
   BuildInfoKey.action("sparkVersion") {
     sparkVersion
   }
-  )
+)
 
 libraryDependencies ++= Seq(
   "org.apache.spark" %% "spark-core" % sparkVersion % "provided",
   "org.apache.spark" %% "spark-sql" % sparkVersion % "provided",
-  "org.apache.spark" %% "spark-hadoop-cloud" % sparkVersion % "compile",
-  )
+  "org.apache.spark" %% "spark-hadoop-cloud" % sparkVersion % "compile"
+)
 
-libraryDependencies ++= (if (scalaBinaryVersion.value == "2.12") Seq(
-  "junit" % "junit" % "4.13.2" % Test,
-  "org.scalatest" %% "scalatest" % "3.2.2" % Test,
-  "ch.cern.sparkmeasure" %% "spark-measure" % "0.18" % Test,
-  "org.scalacheck" %% "scalacheck" % "1.15.2" % Test,
-  "org.mockito" % "mockito-core" % "3.4.6" % Test,
-  "org.scalatestplus" %% "mockito-3-4" % "3.2.9.0" % Test,
-  "com.github.sbt" % "junit-interface" % "0.13.3" % Test
-  )
-else Seq())
+libraryDependencies ++= (if (scalaBinaryVersion.value == "2.12")
+                           Seq(
+                             "junit" % "junit" % "4.13.2" % Test,
+                             "org.scalatest" %% "scalatest" % "3.2.2" % Test,
+                             "ch.cern.sparkmeasure" %% "spark-measure" % "0.18" % Test,
+                             "org.scalacheck" %% "scalacheck" % "1.15.2" % Test,
+                             "org.mockito" % "mockito-core" % "3.4.6" % Test,
+                             "org.scalatestplus" %% "mockito-3-4" % "3.2.9.0" % Test,
+                             "com.github.sbt" % "junit-interface" % "0.13.3" % Test
+                           )
+                         else Seq())
 
 javacOptions ++= Seq("-source", "1.8", "-target", "1.8")
 javaOptions ++= Seq("-Xms512M", "-Xmx2048M", "-XX:MaxPermSize=2048M", "-XX:+CMSClassUnloadingEnabled")
@@ -52,8 +53,8 @@ artifactName := { (sv: ScalaVersion, module: ModuleID, artifact: Artifact) =>
 }
 
 assemblyMergeStrategy := {
-  case PathList("META-INF", xs@_*) => MergeStrategy.discard
-  case x => MergeStrategy.first
+  case PathList("META-INF", xs @ _*) => MergeStrategy.discard
+  case x                             => MergeStrategy.first
 }
 assembly / assemblyJarName := s"${name.value}_${scalaBinaryVersion.value}-${sparkVersion}_${version}-with-dependencies.jar"
 assembly / assemblyOption ~= {
