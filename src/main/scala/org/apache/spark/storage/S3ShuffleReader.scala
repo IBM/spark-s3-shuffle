@@ -1,7 +1,7 @@
-/**
- * Copyright 2022- IBM Inc. All rights reserved
- * SPDX-License-Identifier: Apache2.0
- */
+//
+// Copyright 2022- IBM Inc. All rights reserved
+// SPDX-License-Identifier: Apache 2.0
+//
 
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more

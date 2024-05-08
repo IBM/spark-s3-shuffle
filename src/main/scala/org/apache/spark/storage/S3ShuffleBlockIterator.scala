@@ -1,7 +1,7 @@
-/**
- * Copyright 2022- IBM Inc. All rights reserved
- * SPDX-License-Identifier: Apache2.0
- */
+//
+// Copyright 2022- IBM Inc. All rights reserved
+// SPDX-License-Identifier: Apache 2.0
+//
 
 package org.apache.spark.storage
 
