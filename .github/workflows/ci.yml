@@ -53,6 +53,8 @@ jobs:
             scala: 2.12.18
           - spark: 3.5.0
             scala: 2.13.8
+          - spark: 4.0.0-preview2
+            scala: 2.13.16
     runs-on: ubuntu-latest
     env:
       SPARK_VERSION: ${{ matrix.spark }}

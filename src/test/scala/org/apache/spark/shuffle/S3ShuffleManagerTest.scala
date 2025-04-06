@@ -22,11 +22,11 @@
 
 package org.apache.spark.shuffle
 
-import ch.cern.sparkmeasure.StageMetrics
 import org.apache.spark._
 import org.apache.spark.sql.SparkSession
-import org.junit.Test
-import org.scalatest.Assertions._
+import org.scalatest._
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
 
 import java.util.UUID
 
@@ -39,24 +39,21 @@ case class CombinerClass()
 /*
  * The test has been adapted from the following pull request https://github.com/apache/spark/pull/34864/files .
  */
-class S3ShuffleManagerTest {
+class S3ShuffleManagerTest extends AnyFunSuite {
 
-  @Test
-  def foldByKey(): Unit = {
+  test("foldByKey") {
     val conf = newSparkConf()
     runWithSparkConf(conf)
   }
 
-  @Test
-  def foldByKey_zeroBuffering(): Unit = {
+  test("foldByKey_zeroBuffering") {
     val conf = newSparkConf()
     conf.set("spark.reducer.maxSizeInFlight", "0")
     conf.set("spark.network.maxRemoteBlockSizeFetchToMem", "0")
     runWithSparkConf(conf)
   }
 
-  @Test
-  def runWithSparkConf_noMapSideCombine(): Unit = {
+  test("runWithSparkConf_noMapSideCombine") {
     val conf = newSparkConf()
     conf.set("spark.shuffle.sort.bypassMergeThreshold", "1000")
     val sc = new SparkContext(conf)
@@ -75,8 +72,7 @@ class S3ShuffleManagerTest {
     }
   }
 
-  @Test
-  def forceSortShuffle(): Unit = {
+  test("forceSortShuffle") {
     val conf = newSparkConf()
     conf.set("spark.shuffle.sort.bypassMergeThreshold", "1")
     val sc = new SparkContext(conf)
@@ -104,8 +100,7 @@ class S3ShuffleManagerTest {
     }
   }
 
-  @Test
-  def testCombineByKey(): Unit = {
+  test("testCombineByKey") {
     val conf = newSparkConf()
     val sc = new SparkContext(conf)
     try {
@@ -148,8 +143,7 @@ class S3ShuffleManagerTest {
     }
   }
 
-  @Test
-  def teraSortLike(): Unit = {
+  test("teraSortLike") {
     val conf = newSparkConf()
     conf.set("spark.shuffle.sort.bypassMergeThreshold", "1")
     val sc = new SparkContext(conf)
@@ -177,34 +171,6 @@ class S3ShuffleManagerTest {
     } finally {
       sc.stop()
     }
-  }
-
-  @Test
-  def runWithSparkMeasure(): Unit = {
-    val conf = newSparkConf()
-    val sc = new SparkContext(conf)
-    val spark = SparkSession.builder().sparkContext(sc).getOrCreate()
-    val stageMetrics = StageMetrics(spark)
-    val result = stageMetrics.runAndMeasure {
-      spark.sql("select count(*) from range(1000) cross join range(1000) cross join range(1000)").take(1)
-    }
-    assert(result.map(r => r.getLong(0)).head === 1000000000)
-
-    val timestamp = System.currentTimeMillis()
-    stageMetrics.createStageMetricsDF(s"spark_measure_test_${timestamp}")
-    val metrics = stageMetrics.aggregateStageMetrics(s"spark_measure_test_${timestamp}")
-    // get all of the stats
-    val (runTime, bytesRead, recordsRead, bytesWritten, recordsWritten) =
-      metrics
-        .select("elapsedTime", "bytesRead", "recordsRead", "bytesWritten", "recordsWritten")
-        .take(1)
-        .map(r => (r.getLong(0), r.getLong(1), r.getLong(2), r.getLong(3), r.getLong(4)))
-        .head
-    println(
-      f"Elapsed: ${runTime}, bytesRead: ${bytesRead}, recordsRead: ${recordsRead}, bytesWritten ${bytesWritten}, recordsWritten: ${recordsWritten}"
-    )
-    spark.stop()
-    spark.close()
   }
 
   private def runWithSparkConf(conf: SparkConf) = {
