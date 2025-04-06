@@ -38,7 +38,7 @@ class ConcurrentObjectMap[K, V] {
 
   def remove(filter: (K) => Boolean, action: Option[(V) => Unit]): Unit = {
     lock.synchronized {
-      val keys = valueLocks.filterKeys(filter)
+      val keys = valueLocks.view.filterKeys(filter)
       keys.foreach(v => {
         val key = v._1
         val l = v._2

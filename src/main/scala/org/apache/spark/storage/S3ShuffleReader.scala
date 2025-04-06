@@ -183,7 +183,7 @@ class S3ShuffleReader[K, C](
         .listShuffleIndices(shuffleId)
         .filter(block => block.mapId >= startMapIndex && block.mapId < endMapIndex)
       if (doBatchFetch || dispatcher.forceBatchFetch) {
-        indices.map(block => ShuffleBlockBatchId(block.shuffleId, block.mapId, startPartition, endPartition)).toIterator
+        indices.map(block => ShuffleBlockBatchId(block.shuffleId, block.mapId, startPartition, endPartition)).iterator
       } else {
         indices
           .flatMap(block =>
@@ -191,7 +191,7 @@ class S3ShuffleReader[K, C](
               ShuffleBlockId(block.shuffleId, block.mapId, partition)
             )
           )
-          .toIterator
+          .iterator
       }
     }
   }

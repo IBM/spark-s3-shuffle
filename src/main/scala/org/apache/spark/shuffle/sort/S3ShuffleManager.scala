@@ -31,12 +31,8 @@ import org.apache.spark.shuffle.api.ShuffleExecutorComponents
 import org.apache.spark.shuffle.helper.{S3ShuffleDispatcher, S3ShuffleHelper}
 import org.apache.spark.storage.S3ShuffleReader
 
-import java.io.IOException
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration.Duration
-import scala.concurrent.{Await, Future}
 
 /** This class was adapted from Apache Spark: SortShuffleManager.scala
   */

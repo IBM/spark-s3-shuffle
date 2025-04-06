@@ -223,14 +223,9 @@ class S3ShuffleDispatcher extends Logging {
         case ShuffleMergedDataBlockId(_, shuffleId, _, _)  => shuffleId == shuffleIndex
         case ShuffleMergedIndexBlockId(_, shuffleId, _, _) => shuffleId == shuffleIndex
         case ShuffleMergedMetaBlockId(_, shuffleId, _, _)  => shuffleId == shuffleIndex
-        case BroadcastBlockId(_, _)                        => false
-        case TaskResultBlockId(_)                          => false
-        case StreamBlockId(_, _)                           => false
-        case TempLocalBlockId(_)                           => false
-        case TempShuffleBlockId(_)                         => false
-        case TestBlockId(_)                                => false
+        case _                                             => false
       }
-    cachedFileStatus.remove(filter, _)
+    cachedFileStatus.remove(filter, None)
   }
 
   /** Open a block for writing.

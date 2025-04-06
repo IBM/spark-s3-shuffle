@@ -23,10 +23,7 @@
 package org.apache.spark.shuffle
 
 import org.apache.spark._
-import org.apache.spark.sql.SparkSession
-import org.scalatest._
 import org.scalatest.funsuite.AnyFunSuite
-import org.scalatest.matchers.should.Matchers
 
 import java.util.UUID
 

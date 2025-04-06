@@ -1,6 +1,6 @@
 package org.apache.spark.shuffle.helper
 
-import org.apache.spark.{SparkException}
+import org.apache.spark.SparkException
 import org.apache.spark.internal.Logging
 import org.apache.spark.shuffle.ConcurrentObjectMap
 import org.apache.spark.shuffle.IndexShuffleBlockResolver.NOOP_REDUCE_ID

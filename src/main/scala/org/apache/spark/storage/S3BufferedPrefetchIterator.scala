@@ -9,7 +9,7 @@ import org.apache.spark.TaskContext
 import org.apache.spark.internal.Logging
 import org.apache.spark.shuffle.helper.S3ShuffleDispatcher
 
-import java.io.{BufferedInputStream, InputStream}
+import java.io.InputStream
 import java.util
 import java.util.concurrent.atomic.AtomicLong
 
