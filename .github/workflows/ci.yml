@@ -59,13 +59,14 @@ jobs:
       SCALA_VERSION: ${{ matrix.scala }}
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
     - name: Setup JDK
-      uses: actions/setup-java@v3
+      # https://github.com/actions/setup-java?tab=readme-ov-file#caching-sbt-dependencies
+      uses: actions/setup-java@v4
       with:
-        distribution: temurin
-        java-version: 11
-        cache: sbt
+        distribution: 'temurin'
+        java-version: '17'
+        cache: 'sbt'
     - name: Check formatting
       shell: bash
       run: |-
@@ -74,6 +75,8 @@ jobs:
         sbt scalafmtCheckAll
     - name: Run tests
       shell: bash
+      env:
+        JAVA_OPTS: "--add-opens=java.base/java.lang=ALL-UNNAME --add-opens=java.base/java.lang.invoke=ALL-UNNAME --add-opens=java.base/java.lang.reflect=ALL-UNNAME --add-opens=java.base/java.io=ALL-UNNAME --add-opens=java.base/java.net=ALL-UNNAME --add-opens=java.base/java.nio=ALL-UNNAME --add-opens=java.base/java.util=ALL-UNNAME --add-opens=java.base/java.util.concurrent=ALL-UNNAME --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAME --add-opens=java.base/sun.nio.ch=ALL-UNNAME --add-opens=java.base/sun.nio.cs=ALL-UNNAME --add-opens=java.base/sun.security.action=ALL-UNNAME --add-opens=java.base/sun.util.calendar=ALL-UNNAME --add-opens=java.security.jgss/sun.security.krb5=ALL-UNNAME"
       run: |
         sbt test
     - name: Run tests with Spark Shuffle Fetch enabled
