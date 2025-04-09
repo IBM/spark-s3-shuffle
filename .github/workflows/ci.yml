@@ -68,18 +68,17 @@ jobs:
         cache: sbt
     - name: Check formatting
       shell: bash
-      run: |
+      run: |-
         echo "If either of these checks fail run: 'sbt scalafmtAll && sbt scalafmtSbt'"
         sbt scalafmtSbtCheck
         sbt scalafmtCheckAll
     - name: Run tests
-      if: startsWith(matrix.scala, '2.')
       shell: bash
       run: |
         sbt test
     - name: Run tests with Spark Shuffle Fetch enabled
       shell: bash
-      if: !startsWith(matrix.spark, '3.2.')
+      if: ${{ !startsWith(matrix.spark, '3.2.') }}
       env:
         USE_SPARK_SHUFFLE_FETCH: "true"
       run: |
