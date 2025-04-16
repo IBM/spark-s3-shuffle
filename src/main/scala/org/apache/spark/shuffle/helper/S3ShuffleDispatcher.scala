@@ -211,7 +211,6 @@ class S3ShuffleDispatcher extends Logging {
   def closeCachedBlocks(shuffleIndex: Int): Unit = {
     val filter = (blockId: BlockId) =>
       blockId match {
-        case RDDBlockId(_, _)                              => false
         case ShuffleBlockId(shuffleId, _, _)               => shuffleId == shuffleIndex
         case ShuffleBlockBatchId(shuffleId, _, _, _)       => shuffleId == shuffleIndex
         case ShuffleBlockChunkId(shuffleId, _, _, _)       => shuffleId == shuffleIndex
@@ -223,14 +222,9 @@ class S3ShuffleDispatcher extends Logging {
         case ShuffleMergedDataBlockId(_, shuffleId, _, _)  => shuffleId == shuffleIndex
         case ShuffleMergedIndexBlockId(_, shuffleId, _, _) => shuffleId == shuffleIndex
         case ShuffleMergedMetaBlockId(_, shuffleId, _, _)  => shuffleId == shuffleIndex
-        case BroadcastBlockId(_, _)                        => false
-        case TaskResultBlockId(_)                          => false
-        case StreamBlockId(_, _)                           => false
-        case TempLocalBlockId(_)                           => false
-        case TempShuffleBlockId(_)                         => false
-        case TestBlockId(_)                                => false
+        case _                                             => false
       }
-    cachedFileStatus.remove(filter, _)
+    cachedFileStatus.remove(filter, None)
   }
 
   /** Open a block for writing.
