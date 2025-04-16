@@ -6,7 +6,7 @@
 scalaVersion := sys.env.getOrElse("SCALA_VERSION", "2.12.18")
 organization := "com.ibm"
 name := "spark-s3-shuffle"
-val sparkVersion = sys.env.getOrElse("SPARK_VERSION", "3.5.0")
+val sparkVersion = sys.env.getOrElse("SPARK_VERSION", "3.5.5")
 
 enablePlugins(GitVersioning, BuildInfoPlugin)
 
