@@ -65,5 +65,9 @@ class S3ShuffleDataIO(sparkConf: SparkConf) extends ShuffleDataIO {
     override def removeShuffle(shuffleId: Int, blocking: Boolean): Unit = {
       super.removeShuffle(shuffleId, blocking)
     }
+
+    override def supportsReliableStorage(): Boolean = {
+      true
+    }
   }
 }
